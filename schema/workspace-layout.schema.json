@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://franciscoknebel.com/workspace-layout.schema.json",
+  "title": "Workspace Layout",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "workspaces"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "minLength": 1 },
+    "workspaces": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["windows"],
+        "properties": {
+          "windows": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/window" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["monitor", "position"],
+      "anyOf": [{ "required": ["command"] }, { "required": ["appId"] }],
+      "properties": {
+        "label": { "type": "string" },
+        "appId": { "type": "string", "minLength": 1 },
+        "command": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "appId": { "type": "string" },
+            "wmClass": { "type": "string" },
+            "title": { "type": "string" }
+          }
+        },
+        "monitor": { "type": "integer", "minimum": 0 },
+        "position": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["full", "left", "right", "top", "bottom", "center"]
+            },
+            { "$ref": "#/$defs/relativeRect" }
+          ]
+        },
+        "minimized": { "type": "boolean" },
+        "timeoutMs": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "relativeRect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 },
+        "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}

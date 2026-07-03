@@ -1,0 +1,8 @@
+{
+  "uuid": "workspace-layout@franciscoknebel.com",
+  "name": "Workspace Layout",
+  "description": "Capture and apply named workspace layouts on GNOME Wayland.",
+  "shell-version": ["50"],
+  "url": "https://github.com/franciscoknebel/workspace-layout",
+  "version": 1
+}
