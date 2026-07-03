@@ -11,7 +11,7 @@ Thanks for helping improve Workspace Layout.
 Install dependencies:
 
 ```bash
-npm install
+npm ci
 ```
 
 Run the full local check before opening a PR:
@@ -62,6 +62,7 @@ workspace-layout doctor
 - Update docs when behavior or layout schema changes.
 - Add or update tests for pure logic changes.
 - Run `npm run check` before requesting review.
+- Commit `package-lock.json` when dependencies change.
 
 ## License
 

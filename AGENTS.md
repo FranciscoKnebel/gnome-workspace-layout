@@ -52,5 +52,5 @@ npm run lint
 ## Git Hygiene
 
 - Do not commit generated folders: `bin/`, `dist/`, `lib/`, `coverage/`, or `node_modules/`.
-- Do not commit `package-lock.json`; it is intentionally ignored for now.
+- Commit `package-lock.json`; CI and release workflows use `npm ci` for reproducible installs.
 - Do not commit local layout files from `~/.config/workspace-layout/`.
