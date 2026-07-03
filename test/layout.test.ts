@@ -35,4 +35,19 @@ describe('validateLayout', () => {
       'workspace Dev.windows[0] must define command or appId',
     );
   });
+
+  it('rejects empty commands', () => {
+    const result = validateLayout({
+      name: 'broken',
+      workspaces: {
+        Dev: {
+          windows: [{ command: '', monitor: 0, position: 'left' }],
+        },
+      },
+    });
+
+    expect(result.errors).toContain(
+      'workspace Dev.windows[0].command must be a non-empty string',
+    );
+  });
 });

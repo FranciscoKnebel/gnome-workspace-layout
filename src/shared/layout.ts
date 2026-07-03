@@ -110,12 +110,18 @@ function validateWindow(entry: unknown, path: string, errors: string[]): void {
     return;
   }
 
-  if (entry.command !== undefined && typeof entry.command !== 'string') {
-    errors.push(`${path}.command must be a string`);
+  if (
+    entry.command !== undefined &&
+    (typeof entry.command !== 'string' || entry.command.trim() === '')
+  ) {
+    errors.push(`${path}.command must be a non-empty string`);
   }
 
-  if (entry.appId !== undefined && typeof entry.appId !== 'string') {
-    errors.push(`${path}.appId must be a string`);
+  if (
+    entry.appId !== undefined &&
+    (typeof entry.appId !== 'string' || entry.appId.trim() === '')
+  ) {
+    errors.push(`${path}.appId must be a non-empty string`);
   }
 
   if (entry.command === undefined && entry.appId === undefined) {
@@ -159,10 +165,12 @@ function isPosition(position: unknown): position is WindowPosition {
     return false;
   }
 
-  return ['x', 'y', 'width', 'height'].every((key) => {
-    const value = position[key];
-    return typeof value === 'number' && value >= 0 && value <= 1;
-  });
+  return (
+    isUnitNumber(position.x) &&
+    isUnitNumber(position.y) &&
+    isPositiveUnitNumber(position.width) &&
+    isPositiveUnitNumber(position.height)
+  );
 }
 
 function isMatch(match: unknown): match is WindowMatch {
@@ -177,4 +185,12 @@ function isMatch(match: unknown): match is WindowMatch {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isUnitNumber(value: unknown): value is number {
+  return typeof value === 'number' && value >= 0 && value <= 1;
+}
+
+function isPositiveUnitNumber(value: unknown): value is number {
+  return typeof value === 'number' && value > 0 && value <= 1;
 }
