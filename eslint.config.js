@@ -5,7 +5,14 @@ import tsParser from '@typescript-eslint/parser';
 
 export default [
   {
-    ignores: ['bin/', 'coverage/', 'dist/', 'lib/', 'node_modules/'],
+    ignores: [
+      'bin/',
+      'coverage/',
+      'dist/',
+      'lib/',
+      'node_modules/',
+      'release/',
+    ],
   },
   js.configs.recommended,
   {

@@ -46,15 +46,7 @@ jobs:
       - run: npm run check
 
       - name: Package release artifacts
-        run: |
-          mkdir -p release/workspace-layout@franciscoknebel.com release/workspace-layout
-          cp dist/extension.js dist/metadata.json release/workspace-layout@franciscoknebel.com/
-          cp bin/workspace-layout.js release/workspace-layout/workspace-layout
-          cp -R dist/schema release/workspace-layout/schema
-          chmod +x release/workspace-layout/workspace-layout
-          cd release
-          zip -r workspace-layout@franciscoknebel.com.zip workspace-layout@franciscoknebel.com
-          tar -czf workspace-layout-cli-and-schema.tar.gz workspace-layout
+        run: npm run package:release
 
       - name: Create GitHub release
         env:

@@ -43,8 +43,14 @@ npm run lint
 - `docs/ADR-0001-architecture.md`: accepted architecture decisions.
 - `docs/GLOSSARY.md`: domain vocabulary.
 - `extension/metadata.json`: GNOME extension metadata.
-- `src/extension/extension.ts`: GNOME Shell extension and D-Bus implementation.
+- `src/extension/extension.ts`: small GNOME Shell extension D-Bus controller.
+- `src/extension/apply-service.ts`: layout application orchestration.
+- `src/extension/capture-service.ts`: current layout capture orchestration.
+- `src/extension/shell.ts`: GNOME Shell API boundary for windows, monitors, workspaces, and apps.
+- `src/extension/layout-store.ts`: layout file read/write boundary.
+- `src/extension/paths.ts`: XDG path helpers.
 - `src/cli/workspace-layout.ts`: CLI implementation.
+- `src/cli/gdbus.ts`: `gdbus` output parsing boundary.
 - `src/shared/layout.ts`: layout types and validation.
 - `src/shared/geometry.ts`: monitor-relative geometry logic.
 - `schema/workspace-layout.schema.json`: layout JSON Schema.
