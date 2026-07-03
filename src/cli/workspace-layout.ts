@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseGdbusSingleString } from './gdbus.js';
 
 const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
 const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
@@ -162,24 +163,6 @@ function printResult(result: OperationResult): void {
   if (!result.ok) {
     process.exitCode = 1;
   }
-}
-
-function parseGdbusSingleString(output: string): string {
-  const trimmed = output.trim();
-  const match = /^\('([\s\S]*)',\)$/.exec(trimmed);
-  if (match === null) {
-    throw new Error(`Unexpected gdbus output: ${trimmed}`);
-  }
-  const value = match[1];
-  if (value === undefined) {
-    throw new Error(`Unexpected gdbus output: ${trimmed}`);
-  }
-
-  return value
-    .replaceAll("\\'", "'")
-    .replaceAll('\\n', '\n')
-    .replaceAll('\\"', '"')
-    .replaceAll('\\\\', '\\');
 }
 
 function requireName(name: string | undefined): asserts name is string {
