@@ -229,15 +229,23 @@ export default class WorkspaceLayoutExtension extends Extension {
         const title = window.get_title?.() ?? '';
         const wmClass = window.get_wm_class?.();
 
+        const command = appIdToCommand(appId, wmClass);
+        if (appId === undefined && command === undefined) {
+          errors.push(`Skipped window without app id or command: ${title}`);
+          continue;
+        }
+
+        const match = {
+          ...(appId ? { appId } : {}),
+          ...(wmClass ? { wmClass } : {}),
+        };
+
         layout.workspaces[workspaceName].windows.push({
           label: makeLabel(app?.get_name?.(), title),
           ...(appId ? { appId } : {}),
-          command: appIdToCommand(appId, wmClass),
+          ...(command ? { command } : {}),
           title,
-          match: {
-            ...(appId ? { appId } : {}),
-            ...(wmClass ? { wmClass } : {}),
-          },
+          ...(Object.keys(match).length > 0 ? { match } : {}),
           monitor: monitorIndex,
           position: detectPosition(rectToPlain(rect), monitor),
           ...(window.minimized ? { minimized: true } : {}),
@@ -393,11 +401,16 @@ function rectToPlain(rect: any): Rect {
 function appIdToCommand(
   appId: string | undefined,
   wmClass: string | undefined,
-): string {
+): string | undefined {
   if (appId !== undefined) {
     return `gtk-launch ${shellQuote(appId.replace(/\.desktop$/, ''))}`;
   }
-  return wmClass ?? '';
+
+  if (wmClass !== undefined && wmClass.trim() !== '') {
+    return wmClass;
+  }
+
+  return undefined;
 }
 
 function makeLabel(appName: string | undefined, title: string): string {
