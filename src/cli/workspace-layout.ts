@@ -145,10 +145,30 @@ function installLocal(): void {
     join(projectRoot, 'bin/workspace-layout.js'),
     join(cliDir, 'workspace-layout'),
   );
+  restoreSelinuxContext(extensionDir);
 
   console.log(`Installed extension to ${extensionDir}`);
   console.log(`Installed CLI to ${join(cliDir, 'workspace-layout')}`);
   console.log('Restart GNOME Shell or log out/in, then enable the extension.');
+}
+
+function restoreSelinuxContext(path: string): void {
+  const result = spawnSync('restorecon', ['-R', path], { encoding: 'utf8' });
+  if (result.error?.message.includes('ENOENT')) {
+    console.log(
+      'Skipped SELinux context restore because restorecon is unavailable.',
+    );
+    return;
+  }
+
+  if (result.status !== 0) {
+    console.warn(
+      `Could not restore SELinux context for ${path}: ${result.stderr.trim()}`,
+    );
+    return;
+  }
+
+  console.log(`Restored SELinux context for ${path}`);
 }
 
 function printResult(result: OperationResult): void {
