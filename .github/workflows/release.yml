@@ -33,6 +33,16 @@ jobs:
 
       - run: npm ci
 
+      - name: Validate release tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          expected="v$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")"
+          if [ "$TAG" != "$expected" ]; then
+            echo "Release tag must match package.json version. Expected $expected, got $TAG." >&2
+            exit 1
+          fi
+
       - run: npm run check
 
       - name: Package release artifacts
