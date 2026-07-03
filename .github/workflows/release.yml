@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to create, for example v0.1.0
+        required: true
+        type: string
+      draft:
+        description: Create the release as a draft
+        required: true
+        default: true
+        type: boolean
+      prerelease:
+        description: Mark the release as a prerelease
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm install
+
+      - run: npm run check
+
+      - name: Package release artifacts
+        run: |
+          mkdir -p release/workspace-layout@franciscoknebel.com release/workspace-layout
+          cp dist/extension.js dist/metadata.json release/workspace-layout@franciscoknebel.com/
+          cp bin/workspace-layout.js release/workspace-layout/workspace-layout
+          cp -R dist/schema release/workspace-layout/schema
+          chmod +x release/workspace-layout/workspace-layout
+          cd release
+          zip -r workspace-layout@franciscoknebel.com.zip workspace-layout@franciscoknebel.com
+          tar -czf workspace-layout-cli-and-schema.tar.gz workspace-layout
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          DRAFT: ${{ inputs.draft }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          flags=()
+          if [ "$DRAFT" = "true" ]; then flags+=(--draft); fi
+          if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); fi
+          gh release create "$TAG" \
+            release/workspace-layout@franciscoknebel.com.zip \
+            release/workspace-layout-cli-and-schema.tar.gz \
+            --title "$TAG" \
+            --generate-notes \
+            "${flags[@]}"
