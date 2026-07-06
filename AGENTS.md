@@ -35,6 +35,8 @@ npm run lint
 - Put testable, environment-independent behavior in `src/shared/`.
 - Keep layout schema changes synchronized across TypeScript types, validator code, `schema/workspace-layout.schema.json`, docs, and tests.
 - Preserve the behavior that `workspace-layout apply <name>` only positions newly-created windows and does not alter existing windows.
+- Treat every layout-format feature as public API. When adding or changing layout behavior, update `README.md` with user-facing usage, `docs/GLOSSARY.md` with domain vocabulary, `src/shared/layout.ts` types/validation, `schema/workspace-layout.schema.json`, and parity tests in the same change.
+- Keep layout orchestration explicit and testable: model new window groups or application order in `src/shared/` rather than hiding behavior behind nullable modes or GNOME-specific branches.
 
 ## Files Of Interest
 

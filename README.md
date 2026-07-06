@@ -72,7 +72,13 @@ The installed JSON Schema lives in:
 ```
 
 Layouts may also define top-level `sticky` windows. A sticky window is launched
-once and then marked as visible on every GNOME workspace:
+once, positioned, and then marked as visible on every GNOME workspace. Use this
+for tools that should follow you across workspaces, such as a terminal, chat,
+music player, or monitoring window.
+
+`setup` captures existing sticky windows into the top-level `sticky` array. You
+can also edit a layout file manually and move any window entry from a workspace
+into `sticky`:
 
 ```json
 {
@@ -83,6 +89,11 @@ once and then marked as visible on every GNOME workspace:
   "workspaces": {}
 }
 ```
+
+Sticky windows use the same entry format as workspace windows: `label`, `appId`,
+`command`, `title`, `match`, `monitor`, `position`, `minimized`, and
+`timeoutMs`. `apply` creates workspace-specific windows first, then sticky
+windows. A layout with only sticky windows is valid when `workspaces` is `{}`.
 
 ## Design Constraints
 
