@@ -9,6 +9,7 @@ across GNOME workspaces and monitors.
 
 A named JSON file stored at `~/.config/workspace-layout/layouts/<name>.json`.
 It contains workspaces and the windows to create in each workspace.
+It can also contain top-level sticky windows that are global to all workspaces.
 
 ## Workspace
 
@@ -24,6 +25,11 @@ The GNOME monitor index used in layout files. Indexes are simple integers such a
 
 One desired window in a layout. It can include `label`, `appId`, `command`,
 `title`, `match`, `monitor`, `position`, `minimized`, and `timeoutMs`.
+
+## Sticky Window
+
+A top-level window entry in `sticky`. Sticky windows are launched once and made
+visible on every GNOME workspace.
 
 ## Position Preset
 

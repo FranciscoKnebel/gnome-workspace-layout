@@ -13,6 +13,7 @@ import {
   getMonitorRect,
   getWindows,
   getWorkspaceName,
+  isStickyWindow,
 } from './shell.js';
 
 export function captureLayout(
@@ -43,12 +44,18 @@ export function captureLayout(
         continue;
       }
 
-      const workspaceName = getWorkspaceName(window.get_workspace());
       const entry = captureWindow(window, errors);
       if (entry === null) {
         continue;
       }
 
+      if (isStickyWindow(window)) {
+        layout.sticky ??= [];
+        layout.sticky.push(entry);
+        continue;
+      }
+
+      const workspaceName = getWorkspaceName(window.get_workspace());
       layout.workspaces[workspaceName] ??= { windows: [] };
       layout.workspaces[workspaceName].windows.push(entry);
     }

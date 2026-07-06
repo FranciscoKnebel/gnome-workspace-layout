@@ -5,12 +5,19 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["name", "workspaces"],
+  "anyOf": [
+    { "properties": { "workspaces": { "minProperties": 1 } } },
+    { "properties": { "sticky": { "minItems": 1 } }, "required": ["sticky"] }
+  ],
   "properties": {
     "$schema": { "type": "string" },
     "name": { "type": "string", "minLength": 1 },
+    "sticky": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/window" }
+    },
     "workspaces": {
       "type": "object",
-      "minProperties": 1,
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,

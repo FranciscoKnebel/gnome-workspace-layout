@@ -71,12 +71,26 @@ The installed JSON Schema lives in:
 ~/.local/share/workspace-layout/schema/workspace-layout.schema.json
 ```
 
+Layouts may also define top-level `sticky` windows. A sticky window is launched
+once and then marked as visible on every GNOME workspace:
+
+```json
+{
+  "name": "global-tools",
+  "sticky": [
+    { "command": "gnome-terminal", "monitor": 0, "position": "right" }
+  ],
+  "workspaces": {}
+}
+```
+
 ## Design Constraints
 
 - `apply` always launches new windows and only positions windows created by the command it just ran.
 - Existing windows are not reused, moved, closed, or minimized.
 - Workspaces are referenced by their existing GNOME names.
 - Missing workspaces or monitors are reported as errors, but the rest of the layout continues.
+- Sticky windows are applied after workspace-specific windows and use the same entry format.
 - Window matching defaults to `appId`/`wmClass`; titles are captured as information but not used by default.
 - Position presets are `full`, `left`, `right`, `top`, `bottom`, and `center`.
 - Custom positions are stored as monitor-relative percentages.

@@ -63,6 +63,32 @@ const cases: Array<{ name: string; layout: unknown; valid: boolean }> = [
     },
   },
   {
+    name: 'sticky windows only',
+    valid: true,
+    layout: {
+      name: 'global-tools',
+      sticky: [{ command: 'gnome-terminal', monitor: 0, position: 'right' }],
+      workspaces: {},
+    },
+  },
+  {
+    name: 'empty layout',
+    valid: false,
+    layout: {
+      name: 'empty',
+      workspaces: {},
+    },
+  },
+  {
+    name: 'invalid sticky window',
+    valid: false,
+    layout: {
+      name: 'broken',
+      sticky: [{ monitor: 0, position: 'left' }],
+      workspaces: {},
+    },
+  },
+  {
     name: 'empty command',
     valid: false,
     layout: {

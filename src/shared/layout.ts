@@ -46,8 +46,13 @@ export type WorkspaceLayout = {
 export type LayoutFile = {
   $schema?: string;
   name: string;
+  sticky?: LayoutWindow[];
   workspaces: Record<string, WorkspaceLayout>;
 };
+
+export type LayoutWindowTarget =
+  | { kind: 'workspace'; workspaceName: string; window: LayoutWindow }
+  | { kind: 'sticky'; window: LayoutWindow };
 
 export type LayoutValidationResult = {
   errors: string[];
@@ -67,6 +72,23 @@ export function validateLayout(layout: unknown): LayoutValidationResult {
   if (!isRecord(layout.workspaces)) {
     errors.push('workspaces must be an object');
     return { errors };
+  }
+
+  if (layout.sticky !== undefined) {
+    if (!Array.isArray(layout.sticky)) {
+      errors.push('sticky must be an array');
+    } else {
+      layout.sticky.forEach((windowEntry, index) => {
+        validateWindow(windowEntry, `sticky[${index}]`, errors);
+      });
+    }
+  }
+
+  if (
+    Object.keys(layout.workspaces).length === 0 &&
+    (!Array.isArray(layout.sticky) || layout.sticky.length === 0)
+  ) {
+    errors.push('layout must define at least one workspace or sticky window');
   }
 
   for (const [workspaceName, workspace] of Object.entries(layout.workspaces)) {
@@ -102,6 +124,24 @@ export function assertLayout(layout: unknown): asserts layout is LayoutFile {
   if (errors.length > 0) {
     throw new Error(`Invalid workspace layout:\n${errors.join('\n')}`);
   }
+}
+
+export function layoutWindowsInApplyOrder(
+  layout: LayoutFile,
+): LayoutWindowTarget[] {
+  const targets: LayoutWindowTarget[] = [];
+
+  for (const [workspaceName, workspace] of Object.entries(layout.workspaces)) {
+    for (const window of workspace.windows) {
+      targets.push({ kind: 'workspace', workspaceName, window });
+    }
+  }
+
+  for (const window of layout.sticky ?? []) {
+    targets.push({ kind: 'sticky', window });
+  }
+
+  return targets;
 }
 
 function validateWindow(entry: unknown, path: string, errors: string[]): void {

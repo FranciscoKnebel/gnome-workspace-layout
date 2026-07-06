@@ -36,6 +36,10 @@ export function getWorkspaceName(workspace: any): string {
   return workspace.get_name?.() ?? `Workspace ${workspace.index() + 1}`;
 }
 
+export function getActiveWorkspaceIndex(): number {
+  return global.workspace_manager.get_active_workspace().index();
+}
+
 export function getMonitorRect(index: number): Rect | null {
   if (index < 0 || index >= global.display.get_n_monitors()) {
     return null;
@@ -107,6 +111,14 @@ export function placeWindow(window: any, rect: Rect): void {
   }
 
   window.move_resize_frame(false, rect.x, rect.y, rect.width, rect.height);
+}
+
+export function isStickyWindow(window: any): boolean {
+  return window.is_on_all_workspaces() === true;
+}
+
+export function makeStickyWindow(window: any): void {
+  window.stick();
 }
 
 export function capturedWindowDetails(window: any): {
