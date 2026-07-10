@@ -47,6 +47,16 @@ Capture minimized windows too:
 workspace-layout setup trabalho --include-minimized
 ```
 
+Replace an existing layout with a new capture:
+
+```bash
+workspace-layout setup trabalho --force
+```
+
+Without `--force`, `setup` rejects an existing layout name. `--force` replaces
+the layout file completely only after a valid, complete capture; it does not
+create a backup or merge its contents.
+
 Apply a layout:
 
 ```bash

@@ -45,7 +45,11 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   Setup(name: string, includeMinimized: boolean): string {
-    return JSON.stringify(captureLayout(name, includeMinimized));
+    return JSON.stringify(captureLayout(name, includeMinimized, false));
+  }
+
+  SetupForce(name: string, includeMinimized: boolean): string {
+    return JSON.stringify(captureLayout(name, includeMinimized, true));
   }
 
   Doctor(): string {

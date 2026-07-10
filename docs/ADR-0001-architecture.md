@@ -52,6 +52,5 @@ Schema at `~/.local/share/workspace-layout/schema/workspace-layout.schema.json`.
 
 - Preferences UI.
 - Better Flatpak and browser command generation.
-- A `--force` option for `setup`.
 - More robust asynchronous D-Bus handling.
 - Extension Store packaging automation.

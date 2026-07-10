@@ -8,6 +8,17 @@ export function parseGdbusSingleString(output: string): string {
   return unescapeGVariantString(match[1]);
 }
 
+export function describeGdbusCallFailure(
+  method: string,
+  stderr: string,
+): string {
+  if (method === 'SetupForce' && stderr.includes('UnknownMethod')) {
+    return 'The running extension does not support --force. Restart GNOME Shell or log out/in, then try again.';
+  }
+
+  return `Failed to call extension via D-Bus. Is Workspace Layout enabled?\n${stderr.trim()}`;
+}
+
 function unescapeGVariantString(value: string): string {
   let result = '';
 

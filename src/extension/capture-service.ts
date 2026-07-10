@@ -4,6 +4,7 @@ import type {
   LayoutWindow,
   WindowMatch,
 } from '../shared/layout.js';
+import { validateLayout } from '../shared/layout.js';
 import { layoutExists, writeLayout } from './layout-store.js';
 import { schemaUri } from './paths.js';
 import type { OperationResult } from './result.js';
@@ -19,15 +20,17 @@ import {
 export function captureLayout(
   name: string,
   includeMinimized: boolean,
+  force: boolean,
 ): OperationResult {
   const errors: string[] = [];
   const messages: string[] = [];
 
   try {
-    if (layoutExists(name)) {
+    const replacing = layoutExists(name);
+    if (replacing && !force) {
       return result(
         [
-          `Layout already exists: ${name}. Use --force support in a future version or remove it manually.`,
+          `Layout already exists: ${name}. Use --force to replace it or choose another name.`,
         ],
         [],
       );
@@ -60,6 +63,14 @@ export function captureLayout(
       layout.workspaces[workspaceName].windows.push(entry);
     }
 
+    if (replacing && errors.length === 0) {
+      errors.push(...validateLayout(layout).errors);
+    }
+
+    if (replacing && errors.length > 0) {
+      return result(errors, messages);
+    }
+
     const path = writeLayout(name, layout);
     messages.push(`Wrote ${path}`);
   } catch (error) {
@@ -74,6 +85,9 @@ function captureWindow(window: any, errors: string[]): LayoutWindow | null {
   const monitor = getMonitorRect(details.monitorIndex);
 
   if (monitor === null) {
+    errors.push(
+      `Skipped window on unavailable monitor ${details.monitorIndex}: ${details.title}`,
+    );
     return null;
   }
 

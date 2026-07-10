@@ -2,7 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseGdbusSingleString } from './gdbus.js';
+import { describeGdbusCallFailure, parseGdbusSingleString } from './gdbus.js';
+import { parseSetupOptions } from './setup.js';
 
 const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
 const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
@@ -28,13 +29,15 @@ try {
       );
       break;
     case 'setup':
-      requireName(process.argv[3]);
-      printResult(
-        callExtension('Setup', [
-          `"${escapeDbusString(process.argv[3])}"`,
-          process.argv.includes('--include-minimized') ? 'true' : 'false',
-        ]),
-      );
+      {
+        const setup = parseSetupOptions(process.argv.slice(3));
+        printResult(
+          callExtension(setup.force ? 'SetupForce' : 'Setup', [
+            `"${escapeDbusString(setup.name)}"`,
+            setup.includeMinimized ? 'true' : 'false',
+          ]),
+        );
+      }
       break;
     case 'doctor':
       runDoctor();
@@ -74,9 +77,7 @@ function callExtension(method: string, args: string[]): OperationResult {
   );
 
   if (result.status !== 0) {
-    throw new Error(
-      `Failed to call extension via D-Bus. Is Workspace Layout enabled?\n${result.stderr.trim()}`,
-    );
+    throw new Error(describeGdbusCallFailure(method, result.stderr));
   }
 
   return JSON.parse(parseGdbusSingleString(result.stdout));
@@ -201,7 +202,7 @@ function printHelp(): void {
   console.log(`workspace-layout
 
 Usage:
-  workspace-layout setup <name> [--include-minimized]
+  workspace-layout setup <name> [--include-minimized] [--force]
   workspace-layout apply <name>
   workspace-layout doctor
   workspace-layout install
