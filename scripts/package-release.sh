@@ -12,8 +12,12 @@ cp -R dist/schema "release/workspace-layout/schema"
 chmod +x "release/workspace-layout/workspace-layout"
 
 (
+  cd "release/workspace-layout@franciscoknebel.com"
+  zip -qr "../workspace-layout@franciscoknebel.com.zip" .
+)
+
+(
   cd release
-  zip -qr "workspace-layout@franciscoknebel.com.zip" "workspace-layout@franciscoknebel.com"
   tar -czf "workspace-layout-cli-and-schema.tar.gz" "workspace-layout"
 )
 
@@ -23,5 +27,8 @@ test -f "release/workspace-layout@franciscoknebel.com/extension.js"
 test -f "release/workspace-layout@franciscoknebel.com/metadata.json"
 test -x "release/workspace-layout/workspace-layout"
 test -f "release/workspace-layout/schema/workspace-layout.schema.json"
+
+node scripts/validate-release.mjs \
+  "release/workspace-layout@franciscoknebel.com.zip"
 
 echo "Release artifacts written to release/."

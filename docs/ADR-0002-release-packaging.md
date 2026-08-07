@@ -26,6 +26,10 @@ same script from both local development and GitHub Actions through:
 npm run package:release
 ```
 
+The extension ZIP is validated after packaging. Runtime files must be at the
+ZIP root, development-only content is rejected, and required GNOME metadata is
+checked. CI builds and validates the release artifacts on every change.
+
 The release workflow validates that the requested tag matches the version in
 `package.json` before creating a GitHub Release.
 
@@ -33,11 +37,12 @@ The release workflow validates that the requested tag matches the version in
 
 - CI and release builds are reproducible from the committed lockfile.
 - Local packaging and GitHub release packaging use the same implementation.
+- Invalid extension ZIP structure or metadata fails before publication.
+- Pull requests exercise release packaging through CI.
 - The release workflow fails early if `inputs.tag` and `package.json` diverge.
 - Generated artifacts stay untracked under `release/`.
 
 ## Future Considerations
 
-- Add validation for GNOME Extensions Store ZIP requirements.
 - Add a version bump workflow if release cadence becomes frequent.
 - Consider publishing installable CLI packages only after the extension flow is stable.

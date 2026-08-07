@@ -7,6 +7,7 @@ Thanks for helping improve Workspace Layout.
 - GNOME Shell 50 for manual extension testing.
 - Node.js 22 or newer. Node.js 24+ is preferred.
 - npm 10 or newer.
+- `zip`, `unzip`, and `tar` for `npm run package:release`.
 
 Install dependencies:
 
