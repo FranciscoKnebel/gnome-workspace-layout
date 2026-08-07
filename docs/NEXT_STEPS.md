@@ -1,102 +1,145 @@
 # Next Steps
 
-This document captures the remaining manual testing needed after local install.
+Last verified: 2026-08-06.
+
+This document records the completed stabilization work, evidence from the
+current GNOME session, and the remaining product decisions.
 
 ## Current State
 
-- `npm run check` passes.
-- `npm run install:local` completed successfully.
-- The extension is installed at `~/.local/share/gnome-shell/extensions/workspace-layout@franciscoknebel.com`.
-- The CLI is installed at `~/.local/bin/workspace-layout`.
-- The schema is installed at `~/.local/share/workspace-layout/schema/workspace-layout.schema.json`.
-- The local installer now runs `restorecon -R` on the installed extension directory when SELinux tooling is available.
-- The installed extension files have the expected SELinux context, `data_home_t`.
-- GNOME Shell recognizes the extension after logout/login.
-- `workspace-layout doctor` reaches the extension D-Bus service and reports monitors and workspaces.
+- `npm run check` passes with 11 test files and 56 tests. Linting, Prettier,
+  TypeScript, tests, and builds complete without AJV warnings.
+- `npm run package:release` produces a validated extension ZIP containing
+  `extension.js` and `metadata.json` at the root.
+- CI builds and validates release artifacts in addition to running the normal
+  checks.
+- The latest extension build is installed with the expected `data_home_t`
+  SELinux context. The current Wayland session still needs logout/login to
+  replace the already-loaded ESM module with that build.
+- `workspace-layout doctor` reaches D-Bus and reports 4 monitors and 3
+  workspaces in the current session.
 
-## Manual Testing
+## Completed Stabilization
 
-Test capture:
+### Capture Validation
 
-```bash
-workspace-layout setup trabalho-test
-```
+Every completed capture is now validated before writing. A new capture may
+still save valid windows while reporting skipped invalid windows, but a capture
+containing no valid window cannot write an invalid empty layout. Forced
+replacement remains atomic when capture reports an error.
 
-Then inspect:
-
-```bash
-$EDITOR ~/.config/workspace-layout/layouts/trabalho-test.json
-```
-
-Then test apply with a small edited layout first, preferably one terminal window:
-
-```bash
-workspace-layout apply trabalho-test
-```
-
-## Things To Verify Manually
-
-- `setup` captures workspace names correctly.
-- `setup` captures monitor indexes correctly.
-- `setup` captures sticky windows into the top-level `sticky` array, not into the current workspace.
-- `setup` skips invalid windows instead of writing invalid layout entries.
-- `apply` creates new windows and does not move existing windows.
-- `apply` reports missing workspaces and monitors but continues with other entries.
-- `apply` creates sticky windows after workspace-specific windows and marks them visible on every GNOME workspace.
-- Minimized windows are ignored by default and included with `--include-minimized`.
-
-## Follow-Up Work
-
-Decisions captured during a grilling session. Each item is a backlog candidate,
-not immediate work.
-
-### Event-Driven Window Detection
-
-Replace synchronous polling in `src/extension/shell.ts` with event-driven
-detection. Listen to `display::window-created` as the primary path; keep an
-explicit timeout as fallback. Matching stays `before` + `matchesWindow` with a
-retry grace period before declaring timeout, because `wm_class` and `title` may
-not be populated immediately on `window-created`.
-
-### Command Generation for Flatpak, Electron, and Browsers
-
-Hybrid approach. `src/shared/` gains a pure function that decides the launch
-command from app metadata:
-
-- Flatpak: read the `Exec=` field of the `.desktop` file in `shell.ts`; if it
-  starts with `flatpak run`, use that as `command`.
-- Native `.desktop`: keep `gtk-launch <appId>` as today.
-- Electron without a reliable `.desktop`: write `match.wmClass` but leave
-  `command` undefined so the user fills it manually. `apply` falls back to
-  `appId` via `Shell.App.open_new_window` when `command` is absent.
-
-Tests live in `test/launch-command.test.ts` with pure cases for each app type.
+Regression coverage includes mixed valid/invalid captures and all-invalid new
+captures.
 
 ### Release ZIP Validation
 
-Validate the release ZIP against GNOME Extensions Store expectations via a pure
-function in `src/shared/` that checks:
+The release script now packages extension files at the ZIP root and invokes a
+pure validator that checks:
 
-- Structure: `metadata.json` at the root, `extension.js` present, no `src/`,
-  `node_modules/`, or `tsconfig` files.
-- `metadata.json` content: UUID, name, version, and shell-version are present
-  and well-formed.
+- Required root `extension.js` and `metadata.json` files.
+- Expected UUID, non-empty name and description, positive integer version, and
+  non-empty `shell-version` array.
+- Absence of source, tests, dependencies, build scripts, package manifests, and
+  TypeScript/tool configuration.
 
-A shell script unpacks the ZIP and passes the file list and `metadata.json` to
-the pure validator. Tests live in `test/release-zip.test.ts`.
+The same packaging command runs in CI and in the manual release workflow.
 
-### Release Tag Validation Tests
+### Schema Diagnostics
 
-Migrate release tag validation logic to `src/shared/` when it grows beyond
-simple shell glue — specifically when it gains conditional logic like semver
-parsing, version comparison, or format validation. Pure shell glue
-(`npm version` + `git tag`) stays in the script.
+The root JSON Schema alternatives now declare their object and array types
+explicitly. Runtime validation and schema behavior remain in parity, and AJV no
+longer emits `strictTypes` warnings.
+
+### Event-Driven Window Detection
+
+Window detection now connects to `global.display`'s `window-created` signal
+before launching an application. It keeps the pre-launch window identity set,
+accepts only normal windows with a compositor actor, retries signal candidates
+while app metadata is populated, and has an explicit timeout.
+
+Signal and timeout sources are removed after success, timeout, launch failure,
+or cancellation. A shared operation gate rejects reentrant `Apply`/`Setup`
+calls while the nested event loop is waiting. Disabling the extension prevents
+later waits; in the current live test, GNOME serialized the disable request
+until the synchronous D-Bus `Apply` call completed.
+
+Window identity matching is a pure shared function with tests for explicit
+rules, delayed metadata, default `appId`, and spawned process IDs for
+command-only entries. Commands that delegate window creation can still use
+`appId` or `match`. Runtime confirmation of the latest build remains pending
+because this GNOME Shell does not implement the introspected `ReloadExtension`
+D-Bus method.
+
+## GNOME Validation Results
+
+- [x] Basic capture wrote real windows under `Workspace 1` and `Workspace 3`
+      with monitor indexes 1, 2, and 3.
+- [x] Apply created a new Ptyxis window on `Workspace 1`, monitor 0, in the
+      requested `left` position.
+- [x] Captures before and after apply showed that pre-existing terminals kept
+      their workspaces, monitors, and geometry.
+- [x] Missing workspace and monitor errors were both reported while a later
+      valid entry was still created and positioned.
+- [x] A window applied with `"minimized": true` was positioned and minimized.
+- [x] Default capture excluded minimized windows; `--include-minimized` included
+      them with `"minimized": true`.
+- [x] A sticky-only layout applied successfully, and the next capture placed
+      the new window only in top-level `sticky`.
+- [ ] Log out/in, run a one-window apply, and confirm the event-driven detector
+      creates and positions it without extension errors in the journal.
+- [ ] Visually switch through every workspace while a sticky test window is
+      alive to confirm continuous visibility. Capture already confirms GNOME's
+      `is_on_all_workspaces()` state.
+- [ ] Repeat placement on every physical monitor and visually confirm GNOME's
+      index-to-monitor mapping for the current hardware arrangement.
+
+## Launch Command Compatibility
+
+Investigation in the current environment found:
+
+- Native Ptyxis has `org.gnome.Ptyxis.desktop`. Its captured `gtk-launch`
+  fallback only activated an existing instance and timed out, while its desktop
+  `new-window` action uses the reliable `ptyxis --new-window` command.
+- Flatpak Chrome has `com.google.Chrome.desktop`. Its raw desktop `Exec=` value
+  contains Flatpak arguments and field codes such as `%U` and `@@`, so copying
+  it directly into a shell command is unsafe.
+- OpenCode and Antigravity expose desktop IDs and `StartupWMClass` values even
+  though they are Electron applications. Antigravity's `gtk-launch` fallback
+  created a new window in the live test.
+- Chrome PWAs have distinct desktop entries containing profile and app IDs.
+
+Capture now prefers an announced, syntactically safe desktop `new-window`
+action and sanitizes standalone desktop field codes in a tested pure function.
+Complex escaped or malformed actions, and entries without that action, fall
+back to `gtk-launch <desktop-id>`. Capture never treats a `wmClass` as an
+executable.
+
+- [x] Native Ptyxis `gtk-launch` failure reproduced with an existing instance.
+- [x] Flatpak Chrome `gtk-launch` created and positioned a new window.
+- [x] Electron Antigravity `gtk-launch` created and positioned a new window.
+- [ ] Browser normal window, profile window, and installed PWA.
+- [ ] After logout/login, capture Ptyxis and confirm its command is
+      `ptyxis --new-window`, then apply that captured entry.
+
+An entry containing only `match.wmClass` is still not launchable and would
+require a public layout schema change.
+
+## Remaining Backlog
+
+### Release Tag Validation
+
+The release workflow compares the requested tag exactly with
+`package.json#version`. Keep this check in workflow shell unless semver parsing,
+prerelease rules, or additional version sources are introduced.
 
 ### Preferences UI
 
-Build a preferences UI only after the CLI flow is proven, defined as: all manual
-tests in this document pass. The UI is the next backlog item, not immediate work.
-The current audience edits JSON directly.
+Build a preferences UI only after launch behavior is stable and the remaining
+GNOME checks pass. Define whether it edits layouts, configures defaults, invokes
+setup/apply, or combines those responsibilities before implementation.
+
+Packaging validation must allow legitimate future `prefs.js`, schemas, styles,
+icons, and resources.
 
 ## Useful Commands
 
@@ -104,7 +147,7 @@ The current audience edits JSON directly.
 npm run check
 npm run package:release
 npm run install:local
-gnome-extensions list --user
+gnome-extensions info workspace-layout@franciscoknebel.com
 gnome-extensions enable workspace-layout@franciscoknebel.com
 workspace-layout doctor
 ```
