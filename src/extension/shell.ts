@@ -1,8 +1,14 @@
 import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import type { Rect } from '../shared/geometry.js';
+import { buildLaunchCommand } from '../shared/launch-command.js';
 import type { LayoutWindow } from '../shared/layout.js';
+import { matchesWindowIdentity } from '../shared/window-matching.js';
 import { DEFAULT_TIMEOUT_MS } from './constants.js';
+
+const WINDOW_METADATA_RETRY_MS = 50;
+const activeWindowWaitCancels = new Set<() => void>();
+let windowWaitsEnabled = false;
 
 export function getMonitorCount(): number {
   return global.display.get_n_monitors();
@@ -13,12 +19,7 @@ export function getWorkspaceCount(): number {
 }
 
 export function getWindows(): any[] {
-  return global.display
-    .get_tab_list(0, null)
-    .filter(
-      (window: any) =>
-        window.window_type === 0 || window.get_window_type?.() === 0,
-    );
+  return global.display.get_tab_list(0, null).filter(isNormalWindow);
 }
 
 export function findWorkspaceByName(name: string): any | null {
@@ -56,10 +57,25 @@ export function windowKey(window: any): string {
 export function launchWindow(
   windowEntry: LayoutWindow,
   workspaceIndex: number,
-): void {
+): { pid?: number } {
   if (windowEntry.command !== undefined) {
-    GLib.spawn_command_line_async(windowEntry.command);
-    return;
+    const [parsed, argv] = GLib.shell_parse_argv(windowEntry.command);
+    if (!parsed) {
+      throw new Error(`Could not parse command: ${windowEntry.command}`);
+    }
+
+    const [spawned, pid] = GLib.spawn_async(
+      null,
+      argv,
+      null,
+      GLib.SpawnFlags.SEARCH_PATH,
+      null,
+    );
+    if (!spawned) {
+      throw new Error(`Could not launch command: ${windowEntry.command}`);
+    }
+
+    return { pid };
   }
 
   if (windowEntry.appId !== undefined) {
@@ -68,37 +84,134 @@ export function launchWindow(
       throw new Error(`App not found: ${windowEntry.appId}`);
     }
     app.open_new_window(workspaceIndex);
-    return;
+    return {};
   }
 
   throw new Error('Window entry must define command or appId');
 }
 
-export function waitForNewWindow(
-  before: Set<string>,
+export function launchAndWaitForNewWindow(
   windowEntry: LayoutWindow,
+  workspaceIndex: number,
 ): any | null {
-  const startedAt = GLib.get_monotonic_time();
-  const timeoutMs = windowEntry.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  let found: any | null = null;
-
-  while (elapsedMs(startedAt) < timeoutMs && found === null) {
-    for (const window of getWindows()) {
-      if (
-        !before.has(windowKey(window)) &&
-        matchesWindow(window, windowEntry)
-      ) {
-        found = window;
-        break;
-      }
-    }
-
-    if (found === null) {
-      flushMainContext(100);
-    }
+  if (!windowWaitsEnabled) {
+    throw new Error('Window wait cancelled because the extension is disabled');
   }
 
-  return found;
+  const before = new Set(getWindows().map(windowKey));
+  const candidates = new Set<any>();
+  const context = GLib.MainContext.default();
+  const timeoutMs = windowEntry.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  let found: any | null = null;
+  let finished = false;
+  let cancelled = false;
+  let signalId = 0;
+  let retrySourceId = 0;
+  let timeoutSourceId = 0;
+  let launchPid: number | undefined;
+
+  const finish = (window: any | null): void => {
+    if (finished) {
+      return;
+    }
+
+    found = window;
+    finished = true;
+  };
+
+  const matchCandidate = (): void => {
+    for (const window of candidates) {
+      if (
+        isWindowReadyForPlacement(window) &&
+        !before.has(windowKey(window)) &&
+        matchesWindowIdentity(windowIdentity(window), windowEntry, launchPid)
+      ) {
+        finish(window);
+        return;
+      }
+    }
+  };
+
+  const cancel = (): void => {
+    cancelled = true;
+    finish(null);
+  };
+  activeWindowWaitCancels.add(cancel);
+
+  try {
+    signalId = global.display.connect(
+      'window-created',
+      (_display: any, window: any) => {
+        candidates.add(window);
+        matchCandidate();
+      },
+    );
+
+    retrySourceId = GLib.timeout_add(
+      GLib.PRIORITY_DEFAULT,
+      WINDOW_METADATA_RETRY_MS,
+      () => {
+        if (finished) {
+          retrySourceId = 0;
+          return GLib.SOURCE_REMOVE;
+        }
+
+        matchCandidate();
+        if (finished) {
+          retrySourceId = 0;
+          return GLib.SOURCE_REMOVE;
+        }
+
+        return GLib.SOURCE_CONTINUE;
+      },
+    );
+
+    timeoutSourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, timeoutMs, () => {
+      timeoutSourceId = 0;
+      finish(null);
+      return GLib.SOURCE_REMOVE;
+    });
+
+    launchPid = launchWindow(windowEntry, workspaceIndex).pid;
+
+    while (!finished) {
+      context.iteration(true);
+    }
+
+    if (cancelled) {
+      throw new Error(
+        'Window wait cancelled because the extension is disabled',
+      );
+    }
+
+    return found;
+  } finally {
+    activeWindowWaitCancels.delete(cancel);
+
+    if (signalId !== 0) {
+      global.display.disconnect(signalId);
+    }
+
+    if (retrySourceId !== 0) {
+      GLib.source_remove(retrySourceId);
+    }
+
+    if (timeoutSourceId !== 0) {
+      GLib.source_remove(timeoutSourceId);
+    }
+  }
+}
+
+export function enableWindowWaits(): void {
+  windowWaitsEnabled = true;
+}
+
+export function cancelWindowWaits(): void {
+  windowWaitsEnabled = false;
+
+  for (const cancel of [...activeWindowWaitCancels]) {
+    cancel();
+  }
 }
 
 export function placeWindow(window: any, rect: Rect): void {
@@ -133,7 +246,11 @@ export function capturedWindowDetails(window: any): {
   const app = Shell.WindowTracker.get_default().get_window_app(window);
   const appId = app?.get_id?.();
   const wmClass = window.get_wm_class?.();
-  const command = appIdToCommand(appId, wmClass);
+  const desktopFile = readDesktopFile(appId);
+  const command = buildLaunchCommand({
+    ...(appId ? { appId } : {}),
+    ...(desktopFile ? { desktopFile } : {}),
+  });
 
   return {
     ...(appId ? { appId } : {}),
@@ -150,66 +267,57 @@ export function rectToPlain(rect: any): Rect {
   return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
 }
 
-function matchesWindow(window: any, windowEntry: LayoutWindow): boolean {
+function windowIdentity(window: any): {
+  appId?: string;
+  pid?: number;
+  title?: string;
+  wmClass?: string;
+} {
   const app = Shell.WindowTracker.get_default().get_window_app(window);
-  const match = windowEntry.match;
 
-  if (match?.appId !== undefined && app?.get_id?.() !== match.appId) {
-    return false;
-  }
-
-  if (
-    match?.wmClass !== undefined &&
-    window.get_wm_class?.() !== match.wmClass
-  ) {
-    return false;
-  }
-
-  if (
-    match?.title !== undefined &&
-    !String(window.get_title?.() ?? '').includes(match.title)
-  ) {
-    return false;
-  }
-
-  if (
-    match === undefined &&
-    windowEntry.appId !== undefined &&
-    app?.get_id?.() !== windowEntry.appId
-  ) {
-    return false;
-  }
-
-  return true;
+  return {
+    ...(app?.get_id?.() ? { appId: app.get_id() } : {}),
+    ...(window.get_pid?.() ? { pid: window.get_pid() } : {}),
+    ...(window.get_title?.() ? { title: window.get_title() } : {}),
+    ...(window.get_wm_class?.() ? { wmClass: window.get_wm_class() } : {}),
+  };
 }
 
-function appIdToCommand(
-  appId: string | undefined,
-  wmClass: string | undefined,
-): string | undefined {
-  if (appId !== undefined) {
-    return `gtk-launch ${shellQuote(appId.replace(/\.desktop$/, ''))}`;
+function isNormalWindow(window: any): boolean {
+  return window.window_type === 0 || window.get_window_type?.() === 0;
+}
+
+function isWindowReadyForPlacement(window: any): boolean {
+  const actor = window.get_compositor_private?.();
+  return isNormalWindow(window) && actor !== null && actor !== undefined;
+}
+
+function readDesktopFile(appId: string | undefined): string | undefined {
+  if (appId === undefined) {
+    return undefined;
   }
 
-  if (wmClass !== undefined && wmClass.trim() !== '') {
-    return wmClass;
+  const dataDirectories = [
+    GLib.get_user_data_dir(),
+    ...GLib.get_system_data_dirs(),
+  ];
+
+  for (const dataDirectory of dataDirectories) {
+    const filename = GLib.build_filenamev([
+      dataDirectory,
+      'applications',
+      appId,
+    ]);
+
+    try {
+      const [success, contents] = GLib.file_get_contents(filename);
+      if (success) {
+        return new TextDecoder().decode(contents);
+      }
+    } catch {
+      continue;
+    }
   }
 
   return undefined;
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
-function flushMainContext(milliseconds: number): void {
-  const context = GLib.MainContext.default();
-  const end = GLib.get_monotonic_time() + milliseconds * 1000;
-  while (GLib.get_monotonic_time() < end) {
-    context.iteration(false);
-  }
-}
-
-function elapsedMs(startedAt: number): number {
-  return (GLib.get_monotonic_time() - startedAt) / 1000;
 }

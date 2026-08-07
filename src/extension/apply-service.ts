@@ -11,12 +11,9 @@ import {
   findWorkspaceByName,
   getActiveWorkspaceIndex,
   getMonitorRect,
-  getWindows,
-  launchWindow,
+  launchAndWaitForNewWindow,
   makeStickyWindow,
   placeWindow,
-  waitForNewWindow,
-  windowKey,
 } from './shell.js';
 
 export function applyLayout(name: string): OperationResult {
@@ -88,9 +85,7 @@ function launchAndPlaceWindow(
       );
     }
 
-    const before = new Set(getWindows().map(windowKey));
-    launchWindow(windowEntry, workspaceIndex);
-    const created = waitForNewWindow(before, windowEntry);
+    const created = launchAndWaitForNewWindow(windowEntry, workspaceIndex);
 
     if (created === null) {
       return result(

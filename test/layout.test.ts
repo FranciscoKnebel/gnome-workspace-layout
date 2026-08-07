@@ -43,7 +43,14 @@ describe('validateLayout', () => {
   it('accepts sticky windows without workspace windows', () => {
     const result = validateLayout({
       name: 'global-tools',
-      sticky: [{ command: 'gnome-terminal', monitor: 0, position: 'right' }],
+      sticky: [
+        {
+          appId: 'org.gnome.Terminal.desktop',
+          command: 'gnome-terminal',
+          monitor: 0,
+          position: 'right',
+        },
+      ],
       workspaces: {},
     });
 

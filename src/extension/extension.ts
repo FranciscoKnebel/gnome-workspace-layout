@@ -4,15 +4,24 @@ import { LAYOUT_SCHEMA_ID } from '../shared/layout.js';
 import { applyLayout } from './apply-service.js';
 import { BUS_NAME, DBUS_XML, OBJECT_PATH } from './constants.js';
 import { captureLayout } from './capture-service.js';
+import { OperationGate } from './operation-gate.js';
 import { layoutsDir } from './paths.js';
 import type { OperationResult } from './result.js';
-import { getMonitorCount, getWorkspaceCount } from './shell.js';
+import {
+  cancelWindowWaits,
+  enableWindowWaits,
+  getMonitorCount,
+  getWorkspaceCount,
+} from './shell.js';
 
 export default class WorkspaceLayoutExtension extends Extension {
   private dbusObject: any = null;
   private busOwnerId = 0;
+  private operations = new OperationGate();
 
   override enable(): void {
+    enableWindowWaits();
+
     const iface = Gio.DBusExportedObject.wrapJSObject(DBUS_XML, this);
     iface.export(Gio.DBus.session, OBJECT_PATH);
     this.dbusObject = iface;
@@ -27,6 +36,8 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   override disable(): void {
+    cancelWindowWaits();
+
     if (this.dbusObject !== null) {
       this.dbusObject.unexport();
       this.dbusObject = null;
@@ -41,15 +52,19 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   Apply(name: string): string {
-    return JSON.stringify(applyLayout(name));
+    return JSON.stringify(this.operations.run(() => applyLayout(name)));
   }
 
   Setup(name: string, includeMinimized: boolean): string {
-    return JSON.stringify(captureLayout(name, includeMinimized, false));
+    return JSON.stringify(
+      this.operations.run(() => captureLayout(name, includeMinimized, false)),
+    );
   }
 
   SetupForce(name: string, includeMinimized: boolean): string {
-    return JSON.stringify(captureLayout(name, includeMinimized, true));
+    return JSON.stringify(
+      this.operations.run(() => captureLayout(name, includeMinimized, true)),
+    );
   }
 
   Doctor(): string {

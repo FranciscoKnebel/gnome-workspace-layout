@@ -6,8 +6,13 @@
   "additionalProperties": false,
   "required": ["name", "workspaces"],
   "anyOf": [
-    { "properties": { "workspaces": { "minProperties": 1 } } },
-    { "properties": { "sticky": { "minItems": 1 } }, "required": ["sticky"] }
+    {
+      "properties": { "workspaces": { "type": "object", "minProperties": 1 } }
+    },
+    {
+      "properties": { "sticky": { "type": "array", "minItems": 1 } },
+      "required": ["sticky"]
+    }
   ],
   "properties": {
     "$schema": { "type": "string" },
@@ -45,10 +50,11 @@
         "match": {
           "type": "object",
           "additionalProperties": false,
+          "minProperties": 1,
           "properties": {
-            "appId": { "type": "string" },
-            "wmClass": { "type": "string" },
-            "title": { "type": "string" }
+            "appId": { "type": "string", "pattern": "\\S" },
+            "wmClass": { "type": "string", "pattern": "\\S" },
+            "title": { "type": "string", "pattern": "\\S" }
           }
         },
         "monitor": { "type": "integer", "minimum": 0 },

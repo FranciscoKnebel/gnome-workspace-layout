@@ -25,6 +25,8 @@ The GNOME monitor index used in layout files. Indexes are simple integers such a
 
 One desired window in a layout. It can include `label`, `appId`, `command`,
 `title`, `match`, `monitor`, `position`, `minimized`, and `timeoutMs`.
+Command-only entries are matched by spawned process ID. Entries whose command
+delegates window creation should also define `appId` or `match`.
 
 ## Sticky Window
 
@@ -43,6 +45,8 @@ A custom position expressed relative to the selected monitor, using `x`, `y`,
 ## Setup
 
 The command that captures the current window arrangement into a layout file.
+For each application, it prefers a desktop `new-window` action and otherwise
+records a `gtk-launch` fallback.
 
 ## Apply
 

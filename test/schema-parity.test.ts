@@ -20,7 +20,11 @@ const cases: Array<{ name: string; layout: unknown; valid: boolean }> = [
       workspaces: {
         Dev: {
           windows: [
-            { command: 'gnome-terminal', monitor: 0, position: 'left' },
+            {
+              command: 'gnome-terminal',
+              monitor: 0,
+              position: 'left',
+            },
           ],
         },
       },
@@ -67,7 +71,13 @@ const cases: Array<{ name: string; layout: unknown; valid: boolean }> = [
     valid: true,
     layout: {
       name: 'global-tools',
-      sticky: [{ command: 'gnome-terminal', monitor: 0, position: 'right' }],
+      sticky: [
+        {
+          command: 'gnome-terminal',
+          monitor: 0,
+          position: 'right',
+        },
+      ],
       workspaces: {},
     },
   },
@@ -86,6 +96,25 @@ const cases: Array<{ name: string; layout: unknown; valid: boolean }> = [
       name: 'broken',
       sticky: [{ monitor: 0, position: 'left' }],
       workspaces: {},
+    },
+  },
+  {
+    name: 'empty command match',
+    valid: false,
+    layout: {
+      name: 'broken',
+      workspaces: {
+        Dev: {
+          windows: [
+            {
+              command: 'custom-command',
+              match: {},
+              monitor: 0,
+              position: 'left',
+            },
+          ],
+        },
+      },
     },
   },
   {

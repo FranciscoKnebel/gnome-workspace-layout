@@ -218,8 +218,16 @@ function isMatch(match: unknown): match is WindowMatch {
     return false;
   }
 
-  return ['appId', 'wmClass', 'title'].every(
-    (key) => match[key] === undefined || typeof match[key] === 'string',
+  const supportedKeys = ['appId', 'wmClass', 'title'];
+  const keys = Object.keys(match);
+  if (keys.length === 0 || keys.some((key) => !supportedKeys.includes(key))) {
+    return false;
+  }
+
+  const values = keys.map((key) => match[key]);
+
+  return values.every(
+    (value) => typeof value === 'string' && value.trim() !== '',
   );
 }
 

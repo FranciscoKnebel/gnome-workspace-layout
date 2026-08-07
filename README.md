@@ -17,6 +17,7 @@ external X11 tools such as `wmctrl` or `xdotool`.
 - Node.js 22 or newer. Node.js 24+ is preferred for development.
 - `npm`.
 - `gdbus`, available on typical GNOME/Fedora installs.
+- `zip`, `unzip`, and `tar` when building release artifacts.
 
 ## Install For Development
 
@@ -94,7 +95,12 @@ into `sticky`:
 {
   "name": "global-tools",
   "sticky": [
-    { "command": "gnome-terminal", "monitor": 0, "position": "right" }
+    {
+      "appId": "org.gnome.Terminal.desktop",
+      "command": "gnome-terminal",
+      "monitor": 0,
+      "position": "right"
+    }
   ],
   "workspaces": {}
 }
@@ -105,6 +111,12 @@ Sticky windows use the same entry format as workspace windows: `label`, `appId`,
 `timeoutMs`. `apply` creates workspace-specific windows first, then sticky
 windows. A layout with only sticky windows is valid when `workspaces` is `{}`.
 
+When capturing a window, `setup` prefers the desktop entry's `new-window`
+action when one exists. This avoids desktop launchers that only focus an
+existing application window. Otherwise it records `gtk-launch <desktop-id>` as
+the generic fallback. Raw desktop `Exec=` field codes are not copied into
+layout commands.
+
 ## Design Constraints
 
 - `apply` always launches new windows and only positions windows created by the command it just ran.
@@ -113,6 +125,8 @@ windows. A layout with only sticky windows is valid when `workspaces` is `{}`.
 - Missing workspaces or monitors are reported as errors, but the rest of the layout continues.
 - Sticky windows are applied after workspace-specific windows and use the same entry format.
 - Window matching defaults to `appId`/`wmClass`; titles are captured as information but not used by default.
+- Captured windows without an application ID or a usable launch command are skipped.
+- A command-only entry is matched to the process started by apply. Add `appId` or `match` when the command delegates window creation to another process.
 - Position presets are `full`, `left`, `right`, `top`, `bottom`, and `center`.
 - Custom positions are stored as monitor-relative percentages.
 
