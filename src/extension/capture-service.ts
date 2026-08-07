@@ -63,11 +63,13 @@ export function captureLayout(
       layout.workspaces[workspaceName].windows.push(entry);
     }
 
-    if (replacing && errors.length === 0) {
-      errors.push(...validateLayout(layout).errors);
+    if (replacing && errors.length > 0) {
+      return result(errors, messages);
     }
 
-    if (replacing && errors.length > 0) {
+    const validationErrors = validateLayout(layout).errors;
+    errors.push(...validationErrors);
+    if (validationErrors.length > 0) {
       return result(errors, messages);
     }
 

@@ -55,6 +55,7 @@ describe('captureLayout', () => {
       monitorIndex: 0,
       rect: { x: 0, y: 0, width: 1920, height: 1080 },
       title: 'Terminal',
+      wmClass: 'org.gnome.Terminal',
     });
 
     expect(captureLayout('trabalho', false, true)).toEqual({
@@ -71,6 +72,7 @@ describe('captureLayout', () => {
             {
               command: 'gnome-terminal',
               label: 'Terminal',
+              match: { wmClass: 'org.gnome.Terminal' },
               monitor: 0,
               position: 'full',
               title: 'Terminal',
@@ -111,6 +113,7 @@ describe('captureLayout', () => {
         monitorIndex: 0,
         rect: { x: 0, y: 0, width: 1920, height: 1080 },
         title: 'Terminal',
+        wmClass: 'org.gnome.Terminal',
       })
       .mockReturnValueOnce({
         monitorIndex: 0,
@@ -124,5 +127,25 @@ describe('captureLayout', () => {
       messages: ['Wrote /layouts/trabalho.json'],
     });
     expect(writeLayout).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not write a new layout when every window is invalid', () => {
+    layoutExists.mockReturnValue(false);
+    getWindows.mockReturnValue([{}]);
+    capturedWindowDetails.mockReturnValue({
+      monitorIndex: 0,
+      rect: { x: 0, y: 0, width: 1920, height: 1080 },
+      title: 'Unidentified window',
+    });
+
+    expect(captureLayout('trabalho', false, false)).toEqual({
+      ok: false,
+      errors: [
+        'Skipped window without app id or command: Unidentified window',
+        'layout must define at least one workspace or sticky window',
+      ],
+      messages: [],
+    });
+    expect(writeLayout).not.toHaveBeenCalled();
   });
 });
