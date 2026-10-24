@@ -1,11 +1,15 @@
 export function parseGdbusSingleString(output: string): string {
   const trimmed = output.trim();
-  const match = /^\('([\s\S]*)',\)$/.exec(trimmed);
-  if (match === null || match[1] === undefined) {
+  const match =
+    /^\((?:'((?:\\[\s\S]|[^'\\])*)'|"((?:\\[\s\S]|[^"\\])*)"),\)$/.exec(
+      trimmed,
+    );
+  const value = match?.[1] ?? match?.[2];
+  if (value === undefined) {
     throw new Error(`Unexpected gdbus output: ${trimmed}`);
   }
 
-  return unescapeGVariantString(match[1]);
+  return unescapeGVariantString(value);
 }
 
 export function describeGdbusCallFailure(
@@ -44,6 +48,15 @@ function unescapeGVariantString(value: string): string {
 
     index += 1;
     switch (next) {
+      case 'a':
+        result += '\x07';
+        break;
+      case 'b':
+        result += '\b';
+        break;
+      case 'f':
+        result += '\f';
+        break;
       case 'n':
         result += '\n';
         break;
@@ -53,6 +66,29 @@ function unescapeGVariantString(value: string): string {
       case 't':
         result += '\t';
         break;
+      case 'v':
+        result += '\v';
+        break;
+      case '\n':
+        break;
+      case 'u':
+      case 'U': {
+        const length = next === 'u' ? 4 : 8;
+        const hex = value.slice(index + 1, index + 1 + length);
+        const codePoint = Number.parseInt(hex, 16);
+        if (
+          hex.length !== length ||
+          !/^[\da-f]+$/i.test(hex) ||
+          codePoint === 0 ||
+          codePoint > 0x10ffff ||
+          (codePoint >= 0xd800 && codePoint <= 0xdfff)
+        ) {
+          throw new Error('Invalid Unicode escape in gdbus output');
+        }
+        result += String.fromCodePoint(codePoint);
+        index += length;
+        break;
+      }
       default:
         result += next;
         break;

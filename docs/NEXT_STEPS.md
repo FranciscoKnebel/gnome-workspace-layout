@@ -7,7 +7,7 @@ last manual GNOME session, and the remaining product decisions.
 
 ## Current State
 
-- `npm run check` passes with 13 test files and 97 tests. Linting, Prettier,
+- `npm run check` passes with 14 test files and 111 tests. Linting, Prettier,
   TypeScript, tests, and builds complete without AJV warnings.
 - `npm run package:release` produces a validated extension ZIP containing
   `extension.js` and `metadata.json` at the root.
@@ -51,6 +51,11 @@ confirmation/revision, cancellation, EOF, non-interactive execution, invalid and
 empty selections, and overwrite protection. Live GNOME wizard validation remains
 pending; see [interactive setup](INTERACTIVE_SETUP.md) for protocol details and
 the manual checklist.
+
+The CLI's GVariant decoder accepts both quote delimiters and GLib string escapes.
+A transport regression test exercises preview and save through the real client
+decoder using GLib-formatted output with `gtk-launch` commands and apostrophes in
+window titles. A differential check also passed 200 GLib-generated round-trips.
 
 The compiled CLI also passed real-terminal (PTY) smoke checks with a simulated
 D-Bus executable: subset selection and confirmation, revision with `edit`,
