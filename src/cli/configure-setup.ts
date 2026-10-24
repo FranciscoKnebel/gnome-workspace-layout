@@ -45,6 +45,13 @@ export async function configureSetup(
 
   const terminal = createInterface({ input, output, terminal: true });
   const answers = terminal[Symbol.asyncIterator]();
+  let submittedAnswers = 0;
+  terminal.on('line', () => {
+    // readline also emits a partial final line on EOF, without an Enter key.
+    if (!input.readableEnded) {
+      submittedAnswers += 1;
+    }
+  });
   terminal.on('SIGINT', () => {
     output.write('\n');
     terminal.close();
@@ -53,7 +60,11 @@ export async function configureSetup(
     terminal.setPrompt(prompt);
     output.write(prompt);
     const answer = await answers.next();
-    return answer.done ? null : answer.value.trim();
+    if (answer.done || submittedAnswers === 0) {
+      return null;
+    }
+    submittedAnswers -= 1;
+    return answer.value.trim();
   };
 
   try {

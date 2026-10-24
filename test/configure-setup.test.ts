@@ -127,6 +127,7 @@ describe('configureSetup', () => {
     ['default confirmation to no', '1\n\n'],
     ['EOF during selection', ''],
     ['EOF during confirmation', '1\n'],
+    ['EOF with an unsubmitted confirmation', '1\ny'],
     ['Ctrl+C during selection', '\x03'],
   ])('does not save on %s', async (_, answers) => {
     const io = terminal(answers);

@@ -7,7 +7,7 @@ last manual GNOME session, and the remaining product decisions.
 
 ## Current State
 
-- `npm run check` passes with 13 test files and 96 tests. Linting, Prettier,
+- `npm run check` passes with 13 test files and 97 tests. Linting, Prettier,
   TypeScript, tests, and builds complete without AJV warnings.
 - `npm run package:release` produces a validated extension ZIP containing
   `extension.js` and `metadata.json` at the root.

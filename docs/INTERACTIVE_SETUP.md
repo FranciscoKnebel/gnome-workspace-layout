@@ -20,7 +20,8 @@ workspace-layout setup trabalho --configure --include-minimized --force
    omitted. Sticky-only selections are supported.
 
 Enter `cancel` at the selection prompt to exit. Ctrl+C or EOF before confirmation
-also cancels. Cancellation exits unsuccessfully without creating or replacing a
+also cancels, including EOF after typing `y` without pressing Enter. Cancellation
+exits unsuccessfully without creating or replacing a
 layout. Invalid or empty selections show an error and prompt again; they cannot
 be saved. A capture error aborts the wizard without saving, even if some windows
 could be captured. Forced replacement never saves an incomplete capture.
