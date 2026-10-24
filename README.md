@@ -42,6 +42,27 @@ Capture the current visible layout:
 workspace-layout setup trabalho
 ```
 
+Choose which windows to save using the interactive CLI wizard:
+
+```bash
+workspace-layout setup trabalho --configure
+```
+
+The wizard lists each window's application, title, workspace, monitor, and
+minimized/sticky state. Enter window numbers such as `1,3`, or `all`, review the
+selection, then confirm with `y`. Enter `edit` at confirmation to revise the
+selection, or `cancel` at selection to quit. No live window is closed or changed.
+
+Combine `--configure` with `--include-minimized` to select minimized windows too,
+and with `--force` to replace an existing layout after confirmation. Cancellation,
+Ctrl+C, EOF before confirmation, or a capture error leaves layout files unchanged.
+Empty and invalid selections cannot be saved. The wizard requires an interactive
+terminal on both stdin and stdout; omit `--configure` for scripts and pipes.
+Without the flag, capture remains non-interactive.
+
+See [interactive setup](docs/INTERACTIVE_SETUP.md) for the capture/save protocol
+and manual validation steps.
+
 Capture minimized windows too:
 
 ```bash

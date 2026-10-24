@@ -38,6 +38,9 @@ gnome-extensions enable workspace-layout@franciscoknebel.com
 workspace-layout doctor
 ```
 
+For the optional setup wizard, follow the
+[interactive setup manual checks](docs/INTERACTIVE_SETUP.md#manual-gnome-validation).
+
 ## Project Layout
 
 - `src/extension/`: GNOME Shell extension code. This is the only layer that should manipulate GNOME windows.

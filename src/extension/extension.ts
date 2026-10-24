@@ -3,10 +3,14 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { LAYOUT_SCHEMA_ID } from '../shared/layout.js';
 import { applyLayout } from './apply-service.js';
 import { BUS_NAME, DBUS_XML, OBJECT_PATH } from './constants.js';
-import { captureLayout } from './capture-service.js';
+import {
+  captureLayout,
+  previewCapture,
+  saveCapture,
+} from './capture-service.js';
 import { OperationGate } from './operation-gate.js';
 import { layoutsDir } from './paths.js';
-import type { OperationResult } from './result.js';
+import type { OperationResult } from '../shared/result.js';
 import {
   cancelWindowWaits,
   enableWindowWaits,
@@ -64,6 +68,22 @@ export default class WorkspaceLayoutExtension extends Extension {
   SetupForce(name: string, includeMinimized: boolean): string {
     return JSON.stringify(
       this.operations.run(() => captureLayout(name, includeMinimized, true)),
+    );
+  }
+
+  PreviewSetup(
+    name: string,
+    includeMinimized: boolean,
+    force: boolean,
+  ): string {
+    return JSON.stringify(
+      this.operations.run(() => previewCapture(name, includeMinimized, force)),
+    );
+  }
+
+  SaveSetup(layout: string, force: boolean): string {
+    return JSON.stringify(
+      this.operations.run(() => saveCapture(layout, force)),
     );
   }
 

@@ -5,8 +5,8 @@ import {
   type LayoutWindow,
 } from '../shared/layout.js';
 import { readLayout } from './layout-store.js';
-import type { OperationResult } from './result.js';
-import { result } from './result.js';
+import type { OperationResult } from '../shared/result.js';
+import { result } from '../shared/result.js';
 import {
   findWorkspaceByName,
   getActiveWorkspaceIndex,

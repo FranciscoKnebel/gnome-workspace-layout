@@ -33,4 +33,18 @@ describe('describeGdbusCallFailure', () => {
       'The running extension does not support --force. Restart GNOME Shell or log out/in, then try again.',
     );
   });
+
+  it.each(['PreviewSetup', 'SaveSetup'])(
+    'explains when %s is missing from an older extension',
+    (method) => {
+      expect(
+        describeGdbusCallFailure(
+          method,
+          'GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod: No such method',
+        ),
+      ).toBe(
+        'The running extension does not support --configure. Reinstall the extension and log out/in, then try again.',
+      );
+    },
+  );
 });
