@@ -113,9 +113,19 @@ windows. A layout with only sticky windows is valid when `workspaces` is `{}`.
 
 When capturing a window, `setup` prefers the desktop entry's `new-window`
 action when one exists. This avoids desktop launchers that only focus an
-existing application window. Otherwise it records `gtk-launch <desktop-id>` as
+existing application window. For Flatpak entries without that action, it uses
+`flatpak run` from the desktop `Exec=` line, retaining application/profile/PWA
+arguments while removing standalone field codes and empty file-forwarding markers.
+Unsupported desktop substitutions fall back to the desktop launcher.
+Otherwise it records `gtk-launch <desktop-id>` as
 the generic fallback. Raw desktop `Exec=` field codes are not copied into
-layout commands.
+layout commands without sanitization.
+
+Electron applications without a readable desktop entry retain their `appId` and
+`match.wmClass`, but have no generated `command`. Add a real launch command manually
+(e.g. `code --new-window`); a window class is never treated as an executable. With
+no command, apply attempts `Shell.App.open_new_window` using `appId`. Windows with
+neither an app ID nor a usable command continue to be skipped by capture.
 
 ## Design Constraints
 

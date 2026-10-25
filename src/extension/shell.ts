@@ -250,6 +250,7 @@ export function capturedWindowDetails(window: any): {
   const command = buildLaunchCommand({
     ...(appId ? { appId } : {}),
     ...(desktopFile ? { desktopFile } : {}),
+    desktopFileAvailable: desktopFile !== undefined,
   });
 
   return {
