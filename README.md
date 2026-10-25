@@ -58,6 +58,19 @@ Without `--force`, `setup` rejects an existing layout name. `--force` replaces
 the layout file completely only after a valid, complete capture; it does not
 create a backup or merge its contents.
 
+Select captured windows interactively before saving:
+
+```bash
+workspace-layout setup trabalho --configure --include-minimized
+```
+
+The wizard captures a read-only preview, lists workspace windows followed by
+sticky windows, and accepts `all` or comma-separated window numbers. It displays
+the selected JSON and asks for confirmation. Enter cancels; no file is written
+before confirmation. Add `--force` to replace an existing layout. Workspace names,
+including `constructor`, `toString`, and `__proto__`, are preserved literally.
+Neither preview nor selection moves, closes, launches, or changes any window.
+
 Apply a layout:
 
 ```bash

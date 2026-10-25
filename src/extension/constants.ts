@@ -19,6 +19,11 @@ export const DBUS_XML = `
       <arg type="b" name="includeMinimized" direction="in" />
       <arg type="s" name="result" direction="out" />
     </method>
+    <method name="PreviewSetup">
+      <arg type="s" name="name" direction="in" />
+      <arg type="b" name="includeMinimized" direction="in" />
+      <arg type="s" name="result" direction="out" />
+    </method>
     <method name="SaveSetup">
       <arg type="s" name="layoutJson" direction="in" />
       <arg type="b" name="force" direction="in" />

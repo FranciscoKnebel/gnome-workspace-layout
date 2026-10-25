@@ -57,3 +57,10 @@ It does not modify existing windows.
 
 The command that checks CLI paths, D-Bus connectivity, extension availability,
 layout paths, schema paths, monitors, and workspaces.
+
+## Setup preview and selection
+
+A setup preview is a read-only snapshot of eligible windows. A selection retains
+chosen entries in their original workspace and sticky order. Confirmation saves
+that selection through the validated `SaveSetup` endpoint. Workspace names are
+literal keys, including names also present on JavaScript's object prototype.

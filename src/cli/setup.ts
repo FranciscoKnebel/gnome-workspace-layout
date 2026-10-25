@@ -1,16 +1,20 @@
 export type SetupOptions = {
   force: boolean;
+  configure: boolean;
   includeMinimized: boolean;
   name: string;
 };
 
 export function parseSetupOptions(arguments_: string[]): SetupOptions {
   let force = false;
+  let configure = false;
   let includeMinimized = false;
   let name: string | undefined;
 
   for (const argument of arguments_) {
-    if (argument === '--force') {
+    if (argument === '--configure') {
+      configure = true;
+    } else if (argument === '--force') {
       force = true;
     } else if (argument === '--include-minimized') {
       includeMinimized = true;
@@ -29,5 +33,5 @@ export function parseSetupOptions(arguments_: string[]): SetupOptions {
     );
   }
 
-  return { force, includeMinimized, name };
+  return { force, configure, includeMinimized, name };
 }

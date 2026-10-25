@@ -36,10 +36,43 @@ export function captureLayout(
       );
     }
 
+    const preview = previewSetup(name, includeMinimized);
+    errors.push(...preview.errors);
+    const layout = preview.layout;
+    if (layout === undefined) {
+      return result(errors, messages);
+    }
+
+    if (replacing && errors.length > 0) {
+      return result(errors, messages);
+    }
+
+    const validationErrors = validateLayout(layout).errors;
+    if (validationErrors.length > 0) {
+      return result(errors, messages);
+    }
+
+    const path = writeLayout(name, layout);
+    messages.push(`Wrote ${path}`);
+  } catch (error) {
+    errors.push(String(error));
+  }
+
+  return result(errors, messages);
+}
+
+export type SetupPreview = OperationResult & { layout?: LayoutFile };
+
+export function previewSetup(
+  name: string,
+  includeMinimized: boolean,
+): SetupPreview {
+  const errors: string[] = [];
+  try {
     const layout: LayoutFile = {
       $schema: schemaUri(),
       name,
-      workspaces: {},
+      workspaces: Object.create(null),
     };
 
     for (const window of getWindows()) {
@@ -63,23 +96,11 @@ export function captureLayout(
       layout.workspaces[workspaceName].windows.push(entry);
     }
 
-    if (replacing && errors.length > 0) {
-      return result(errors, messages);
-    }
-
-    const validationErrors = validateLayout(layout).errors;
-    errors.push(...validationErrors);
-    if (validationErrors.length > 0) {
-      return result(errors, messages);
-    }
-
-    const path = writeLayout(name, layout);
-    messages.push(`Wrote ${path}`);
+    errors.push(...validateLayout(layout).errors);
+    return { ...result(errors, []), layout };
   } catch (error) {
-    errors.push(String(error));
+    return result([String(error)], []);
   }
-
-  return result(errors, messages);
 }
 
 function captureWindow(window: any, errors: string[]): LayoutWindow | null {
