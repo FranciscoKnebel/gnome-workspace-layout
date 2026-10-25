@@ -150,6 +150,16 @@ function validateWindow(entry: unknown, path: string, errors: string[]): void {
     return;
   }
 
+  for (const field of ['label', 'title'] as const) {
+    if (entry[field] !== undefined && typeof entry[field] !== 'string') {
+      errors.push(`${path}.${field} must be a string`);
+    }
+  }
+
+  if (entry.minimized !== undefined && typeof entry.minimized !== 'boolean') {
+    errors.push(`${path}.minimized must be a boolean`);
+  }
+
   if (
     entry.command !== undefined &&
     (typeof entry.command !== 'string' || entry.command.trim() === '')
