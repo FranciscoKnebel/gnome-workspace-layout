@@ -46,3 +46,19 @@ The release workflow validates that the requested tag matches the version in
 
 - Add a version bump workflow if release cadence becomes frequent.
 - Consider publishing installable CLI packages only after the extension flow is stable.
+
+## Automated artifact validation
+
+`npm run package:release` invokes `scripts/validate-release.mjs` on the generated
+ZIP. The script reads its entry list and root metadata without extracting files;
+the pure validator in `src/shared/release.ts` checks structure and content.
+Duplicate entries, absolute/traversing paths, development files, missing root
+runtime files, and malformed metadata fail packaging. Legitimate future
+preferences, icons, schemas, styles and translations remain allowed.
+
+Shell version validation checks syntax (legacy `3.38`, modern `50`, or development
+suffixes `.alpha`, `.beta`, `.rc`), not actual compatibility or store approval.
+Maintainers must verify claimed compatibility, supported stable releases and at
+most one development release against the
+[GNOME review guidelines](https://gjs.guide/extensions/review-guidelines/review-guidelines.html).
+There is no headless Shell smoke test.

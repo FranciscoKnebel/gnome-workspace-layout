@@ -78,7 +78,7 @@ describe('extension release validation', () => {
       'metadata.json name must be a non-empty string',
       'metadata.json description must be a non-empty string',
       'metadata.json version must be a positive integer',
-      'metadata.json shell-version must be a non-empty array of non-empty strings',
+      'metadata.json shell-version must be a non-empty array of GNOME Shell version strings',
     ]);
   });
 
@@ -91,4 +91,70 @@ describe('extension release validation', () => {
       ).errors,
     ).toEqual(['metadata.json must contain a JSON object']);
   });
+});
+
+it.each(['banana', ' 50 ', '', '50;echo', 'v50', 50])(
+  'rejects malformed shell-version %j',
+  (version) => {
+    expect(
+      validateExtensionRelease(
+        ['extension.js', 'metadata.json'],
+        { ...validMetadata, 'shell-version': [version] },
+        expectedUuid,
+      ).errors,
+    ).toContain(
+      'metadata.json shell-version must be a non-empty array of GNOME Shell version strings',
+    );
+  },
+);
+
+it.each(['3.38', '40', '50', '50.alpha', '50.beta', '50.rc'])(
+  'accepts Shell version syntax %s',
+  (version) => {
+    expect(
+      validateExtensionRelease(
+        ['extension.js', 'metadata.json'],
+        { ...validMetadata, 'shell-version': [version] },
+        expectedUuid,
+      ).errors,
+    ).toEqual([]);
+  },
+);
+
+it('rejects duplicate root metadata and non-canonical ZIP paths', () => {
+  const errors = validateExtensionRelease(
+    [
+      'extension.js',
+      'metadata.json',
+      'metadata.json',
+      '../src/code.js',
+      '/extension.js',
+      './hidden.js',
+    ],
+    validMetadata,
+    expectedUuid,
+  ).errors;
+  expect(errors).toContain('Duplicate ZIP entry: metadata.json');
+  for (const path of ['../src/code.js', '/extension.js', './hidden.js'])
+    expect(errors).toContain(
+      `ZIP entry must use a relative canonical path: ${path}`,
+    );
+});
+
+it('allows future preferences and resources without allowing development files', () => {
+  expect(
+    validateExtensionRelease(
+      [
+        'extension.js',
+        'metadata.json',
+        'prefs.js',
+        'schemas/gschemas.compiled',
+        'stylesheet.css',
+        'icons/app.svg',
+        'locale/pt_BR/LC_MESSAGES/app.mo',
+      ],
+      validMetadata,
+      expectedUuid,
+    ).errors,
+  ).toEqual([]);
 });
