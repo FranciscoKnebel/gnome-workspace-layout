@@ -17,7 +17,17 @@ export function validateExtensionRelease(
     errors.push('metadata.json must exist at the ZIP root');
   }
 
+  const seen = new Set<string>();
   for (const file of files) {
+    if (seen.has(file)) errors.push(`Duplicate ZIP entry: ${file}`);
+    seen.add(file);
+    if (
+      file.startsWith('/') ||
+      file.includes('\\') ||
+      file.split('/').some((part) => part === '.' || part === '..')
+    ) {
+      errors.push(`ZIP entry must use a relative canonical path: ${file}`);
+    }
     if (isDevelopmentOnly(file)) {
       errors.push(
         `Development-only file is not allowed in the extension ZIP: ${file}`,
@@ -53,14 +63,23 @@ export function validateExtensionRelease(
   if (
     !Array.isArray(metadata['shell-version']) ||
     metadata['shell-version'].length === 0 ||
-    !metadata['shell-version'].every(isNonEmptyString)
+    !metadata['shell-version'].every(isShellVersion)
   ) {
     errors.push(
-      'metadata.json shell-version must be a non-empty array of non-empty strings',
+      'metadata.json shell-version must be a non-empty array of GNOME Shell version strings',
     );
   }
 
   return { errors };
+}
+
+function isShellVersion(value: unknown): boolean {
+  return (
+    typeof value === 'string' &&
+    /^(?:3\.[0-9]+|[4-9][0-9]|[1-9][0-9]{2,})(?:\.(?:alpha|beta|rc))?$/.test(
+      value,
+    )
+  );
 }
 
 function isDevelopmentOnly(file: string): boolean {
