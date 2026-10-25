@@ -156,3 +156,31 @@ describe('layout schema parity', () => {
     expect(runtimeResult).toBe(valid);
   });
 });
+
+describe('optional window field parity', () => {
+  for (const group of ['workspace', 'sticky']) {
+    for (const [field, value, valid] of [
+      ['minimized', 'yes', false],
+      ['title', 123, false],
+      ['label', [], false],
+      ['minimized', false, true],
+      ['title', '', true],
+      ['label', '', true],
+    ] as const) {
+      it(`${group}: ${field} = ${JSON.stringify(value)}`, () => {
+        const window = {
+          command: 'ptyxis --new-window',
+          monitor: 0,
+          position: 'left',
+          [field]: value,
+        };
+        const layout =
+          group === 'sticky'
+            ? { name: 'test', workspaces: {}, sticky: [window] }
+            : { name: 'test', workspaces: { Dev: { windows: [window] } } };
+        expect(validateSchema(layout)).toBe(valid);
+        expect(validateLayout(layout).errors.length === 0).toBe(valid);
+      });
+    }
+  }
+});

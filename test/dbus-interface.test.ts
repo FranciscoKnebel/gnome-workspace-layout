@@ -24,3 +24,7 @@ describe('D-Bus capture methods', () => {
     expect(inputTypes('SetupForce')).toEqual(['s', 'b']);
   });
 });
+
+it('exposes SaveSetup with JSON and an explicit overwrite flag', () => {
+  expect(inputTypes('SaveSetup')).toEqual(['s', 'b']);
+});

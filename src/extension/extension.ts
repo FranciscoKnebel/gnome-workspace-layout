@@ -4,6 +4,7 @@ import { LAYOUT_SCHEMA_ID } from '../shared/layout.js';
 import { applyLayout } from './apply-service.js';
 import { BUS_NAME, DBUS_XML, OBJECT_PATH } from './constants.js';
 import { captureLayout } from './capture-service.js';
+import { saveSetup } from './setup-service.js';
 import { OperationGate } from './operation-gate.js';
 import { layoutsDir } from './paths.js';
 import type { OperationResult } from './result.js';
@@ -64,6 +65,12 @@ export default class WorkspaceLayoutExtension extends Extension {
   SetupForce(name: string, includeMinimized: boolean): string {
     return JSON.stringify(
       this.operations.run(() => captureLayout(name, includeMinimized, true)),
+    );
+  }
+
+  SaveSetup(layoutJson: string, force: boolean): string {
+    return JSON.stringify(
+      this.operations.run(() => saveSetup(layoutJson, force)),
     );
   }
 
