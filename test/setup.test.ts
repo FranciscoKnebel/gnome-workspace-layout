@@ -7,6 +7,7 @@ describe('parseSetupOptions', () => {
       parseSetupOptions(['--force', 'trabalho', '--include-minimized']),
     ).toEqual({
       force: true,
+      configure: false,
       includeMinimized: true,
       name: 'trabalho',
     });

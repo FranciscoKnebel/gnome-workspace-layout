@@ -3,6 +3,7 @@ import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describeGdbusCallFailure, parseGdbusSingleString } from './gdbus.js';
+import { configureSetup } from './configure.js';
 import { parseSetupOptions } from './setup.js';
 
 const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
@@ -31,6 +32,21 @@ try {
     case 'setup':
       {
         const setup = parseSetupOptions(process.argv.slice(3));
+        if (setup.configure) {
+          printResult(
+            await configureSetup(setup, (method, values) =>
+              callExtension(
+                method,
+                values.map((value) =>
+                  typeof value === 'boolean'
+                    ? String(value)
+                    : `"${escapeDbusString(value)}"`,
+                ),
+              ),
+            ),
+          );
+          break;
+        }
         printResult(
           callExtension(setup.force ? 'SetupForce' : 'Setup', [
             `"${escapeDbusString(setup.name)}"`,
@@ -202,7 +218,7 @@ function printHelp(): void {
   console.log(`workspace-layout
 
 Usage:
-  workspace-layout setup <name> [--include-minimized] [--force]
+  workspace-layout setup <name> [--include-minimized] [--force] [--configure]
   workspace-layout apply <name>
   workspace-layout doctor
   workspace-layout install
