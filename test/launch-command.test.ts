@@ -132,3 +132,54 @@ Exec=example --name %c
     ).toBe("gtk-launch 'org.example.App'");
   });
 });
+
+it('generates Flatpak commands without new-window actions and strips forwarding placeholders', () => {
+  expect(
+    buildLaunchCommand({
+      appId: 'com.google.Chrome.desktop',
+      desktopFile:
+        '[Desktop Entry]\nExec=/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=/app/bin/chrome --file-forwarding com.google.Chrome --profile-directory="Profile 1" @@u %U @@',
+    }),
+  ).toBe(
+    '/usr/bin/flatpak run --branch=stable --arch=x86_64 --command=/app/bin/chrome com.google.Chrome --profile-directory="Profile 1"',
+  );
+});
+
+it('preserves sandboxed browser PWA arguments', () => {
+  expect(
+    buildLaunchCommand({
+      appId: 'pwa.desktop',
+      execLine:
+        'flatpak run com.google.Chrome --profile-directory=Default --app-id=abc %U',
+    }),
+  ).toBe(
+    'flatpak run com.google.Chrome --profile-directory=Default --app-id=abc',
+  );
+});
+
+it('leaves commands absent for unavailable Electron desktop entries', () => {
+  expect(
+    buildLaunchCommand({
+      appId: 'electron.desktop',
+      desktopFileAvailable: false,
+    }),
+  ).toBeUndefined();
+});
+
+it.each([
+  'flatpak run org.gimp.GIMP --name=%c',
+  'flatpak run org.gimp.GIMP "unterminated',
+  'flatpak run org.gimp.GIMP --file=%F',
+])('falls back for unsupported Flatpak Exec syntax: %s', (execLine) => {
+  expect(buildLaunchCommand({ appId: 'org.gimp.GIMP.desktop', execLine })).toBe(
+    "gtk-launch 'org.gimp.GIMP'",
+  );
+});
+
+it('preserves marker-like text inside quoted arguments', () => {
+  expect(
+    buildLaunchCommand({
+      execLine: 'flatpak run app --profile="My @@ profile" %U',
+    }),
+  ).toBe('flatpak run app --profile="My @@ profile"');
+});
