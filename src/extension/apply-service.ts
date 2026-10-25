@@ -16,7 +16,7 @@ import {
   placeWindow,
 } from './shell.js';
 
-export function applyLayout(name: string): OperationResult {
+export async function applyLayout(name: string): Promise<OperationResult> {
   const errors: string[] = [];
   const messages: string[] = [];
 
@@ -27,8 +27,11 @@ export function applyLayout(name: string): OperationResult {
     for (const target of layoutWindowsInApplyOrder(layout)) {
       const placement =
         target.kind === 'sticky'
-          ? launchAndPlaceStickyWindow(target.window)
-          : launchAndPlaceWorkspaceWindow(target.window, target.workspaceName);
+          ? await launchAndPlaceStickyWindow(target.window)
+          : await launchAndPlaceWorkspaceWindow(
+              target.window,
+              target.workspaceName,
+            );
       errors.push(...placement.errors);
       messages.push(...placement.messages);
     }
@@ -39,9 +42,9 @@ export function applyLayout(name: string): OperationResult {
   return result(errors, messages);
 }
 
-function launchAndPlaceStickyWindow(
+async function launchAndPlaceStickyWindow(
   windowEntry: LayoutWindow,
-): OperationResult {
+): Promise<OperationResult> {
   return launchAndPlaceWindow(
     windowEntry,
     getActiveWorkspaceIndex(),
@@ -50,10 +53,10 @@ function launchAndPlaceStickyWindow(
   );
 }
 
-function launchAndPlaceWorkspaceWindow(
+async function launchAndPlaceWorkspaceWindow(
   windowEntry: LayoutWindow,
   workspaceName: string,
-): OperationResult {
+): Promise<OperationResult> {
   const workspace = findWorkspaceByName(workspaceName);
   if (workspace === null) {
     return result([`Workspace not found: ${workspaceName}`], []);
@@ -67,12 +70,12 @@ function launchAndPlaceWorkspaceWindow(
   );
 }
 
-function launchAndPlaceWindow(
+async function launchAndPlaceWindow(
   windowEntry: LayoutWindow,
   workspaceIndex: number,
   workspaceName: string,
   placeInWorkspace: (window: any) => void,
-): OperationResult {
+): Promise<OperationResult> {
   try {
     const monitorRect = getMonitorRect(windowEntry.monitor);
 
@@ -85,7 +88,10 @@ function launchAndPlaceWindow(
       );
     }
 
-    const created = launchAndWaitForNewWindow(windowEntry, workspaceIndex);
+    const created = await launchAndWaitForNewWindow(
+      windowEntry,
+      workspaceIndex,
+    );
 
     if (created === null) {
       return result(

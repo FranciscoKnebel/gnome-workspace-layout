@@ -59,9 +59,10 @@ while app metadata is populated, and has an explicit timeout.
 
 Signal and timeout sources are removed after success, timeout, launch failure,
 or cancellation. A shared operation gate rejects reentrant `Apply`/`Setup`
-calls while the nested event loop is waiting. Disabling the extension prevents
-later waits; in the current live test, GNOME serialized the disable request
-until the synchronous D-Bus `Apply` call completed.
+calls while an asynchronous wait is pending. `Apply` now replies through an
+asynchronous D-Bus invocation, without a nested main-context loop. Disabling the
+extension cancels pending waits and prevents later launches. These changes need
+a fresh live GNOME test; the earlier synchronous-path results do not verify them.
 
 Window identity matching is a pure shared function with tests for explicit
 rules, delayed metadata, default `appId`, and spawned process IDs for
