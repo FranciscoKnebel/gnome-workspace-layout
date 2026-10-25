@@ -34,3 +34,27 @@ describe('extension operation gate', () => {
 function success() {
   return { ok: true, errors: [], messages: ['ok'] };
 }
+
+it('holds the gate across asynchronous waits and releases it after rejection', async () => {
+  const gate = new OperationGate();
+  let rejectWait: (reason: Error) => void = () => {};
+  const pending = gate.runAsync(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectWait = reject;
+      }),
+  );
+  expect(gate.run(() => ({ ok: true, errors: [], messages: [] })).ok).toBe(
+    false,
+  );
+  expect(
+    (await gate.runAsync(async () => ({ ok: true, errors: [], messages: [] })))
+      .ok,
+  ).toBe(false);
+  const rejected = expect(pending).rejects.toThrow('cancelled');
+  rejectWait(new Error('cancelled'));
+  await rejected;
+  expect(gate.run(() => ({ ok: true, errors: [], messages: [] })).ok).toBe(
+    true,
+  );
+});

@@ -1,4 +1,5 @@
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { LAYOUT_SCHEMA_ID } from '../shared/layout.js';
 import { applyLayout } from './apply-service.js';
@@ -51,8 +52,18 @@ export default class WorkspaceLayoutExtension extends Extension {
     console.log('Workspace Layout disabled');
   }
 
-  Apply(name: string): string {
-    return JSON.stringify(this.operations.run(() => applyLayout(name)));
+  async ApplyAsync([name]: [string], invocation: any): Promise<void> {
+    try {
+      const result = await this.operations.runAsync(() => applyLayout(name));
+      invocation.return_value(
+        new GLib.Variant('(s)', [JSON.stringify(result)]),
+      );
+    } catch (error) {
+      invocation.return_dbus_error(
+        'com.franciscoknebel.WorkspaceLayout.Error',
+        String(error),
+      );
+    }
   }
 
   Setup(name: string, includeMinimized: boolean): string {

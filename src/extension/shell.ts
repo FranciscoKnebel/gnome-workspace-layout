@@ -3,10 +3,10 @@ import Shell from 'gi://Shell';
 import type { Rect } from '../shared/geometry.js';
 import { buildLaunchCommand } from '../shared/launch-command.js';
 import type { LayoutWindow } from '../shared/layout.js';
+import { detectLaunchedWindow } from '../shared/window-detection.js';
 import { matchesWindowIdentity } from '../shared/window-matching.js';
 import { DEFAULT_TIMEOUT_MS } from './constants.js';
 
-const WINDOW_METADATA_RETRY_MS = 50;
 const activeWindowWaitCancels = new Set<() => void>();
 let windowWaitsEnabled = false;
 
@@ -90,116 +90,48 @@ export function launchWindow(
   throw new Error('Window entry must define command or appId');
 }
 
-export function launchAndWaitForNewWindow(
+export async function launchAndWaitForNewWindow(
   windowEntry: LayoutWindow,
   workspaceIndex: number,
-): any | null {
+): Promise<any | null> {
   if (!windowWaitsEnabled) {
     throw new Error('Window wait cancelled because the extension is disabled');
   }
-
-  const before = new Set(getWindows().map(windowKey));
-  const candidates = new Set<any>();
-  const context = GLib.MainContext.default();
-  const timeoutMs = windowEntry.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  let found: any | null = null;
-  let finished = false;
-  let cancelled = false;
-  let signalId = 0;
-  let retrySourceId = 0;
-  let timeoutSourceId = 0;
-  let launchPid: number | undefined;
-
-  const finish = (window: any | null): void => {
-    if (finished) {
-      return;
-    }
-
-    found = window;
-    finished = true;
-  };
-
-  const matchCandidate = (): void => {
-    for (const window of candidates) {
-      if (
-        isWindowReadyForPlacement(window) &&
-        !before.has(windowKey(window)) &&
-        matchesWindowIdentity(windowIdentity(window), windowEntry, launchPid)
-      ) {
-        finish(window);
-        return;
-      }
-    }
-  };
-
-  const cancel = (): void => {
-    cancelled = true;
-    finish(null);
-  };
-  activeWindowWaitCancels.add(cancel);
-
-  try {
-    signalId = global.display.connect(
-      'window-created',
-      (_display: any, window: any) => {
-        candidates.add(window);
-        matchCandidate();
-      },
-    );
-
-    retrySourceId = GLib.timeout_add(
-      GLib.PRIORITY_DEFAULT,
-      WINDOW_METADATA_RETRY_MS,
-      () => {
-        if (finished) {
-          retrySourceId = 0;
-          return GLib.SOURCE_REMOVE;
-        }
-
-        matchCandidate();
-        if (finished) {
-          retrySourceId = 0;
-          return GLib.SOURCE_REMOVE;
-        }
-
-        return GLib.SOURCE_CONTINUE;
-      },
-    );
-
-    timeoutSourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, timeoutMs, () => {
-      timeoutSourceId = 0;
-      finish(null);
-      return GLib.SOURCE_REMOVE;
-    });
-
-    launchPid = launchWindow(windowEntry, workspaceIndex).pid;
-
-    while (!finished) {
-      context.iteration(true);
-    }
-
-    if (cancelled) {
-      throw new Error(
-        'Window wait cancelled because the extension is disabled',
+  return detectLaunchedWindow({
+    getWindows,
+    key: windowKey,
+    matches: (window, pid) =>
+      isWindowReadyForPlacement(window) &&
+      matchesWindowIdentity(windowIdentity(window), windowEntry, pid),
+    subscribe: (created) => {
+      const signalId = global.display.connect(
+        'window-created',
+        (_display: any, window: any) => created(window),
       );
-    }
-
-    return found;
-  } finally {
-    activeWindowWaitCancels.delete(cancel);
-
-    if (signalId !== 0) {
-      global.display.disconnect(signalId);
-    }
-
-    if (retrySourceId !== 0) {
-      GLib.source_remove(retrySourceId);
-    }
-
-    if (timeoutSourceId !== 0) {
-      GLib.source_remove(timeoutSourceId);
-    }
-  }
+      return () => global.display.disconnect(signalId);
+    },
+    schedule: (ms, callback) => {
+      let sourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+        sourceId = 0;
+        callback();
+        return GLib.SOURCE_REMOVE;
+      });
+      return () => {
+        if (sourceId !== 0) {
+          GLib.source_remove(sourceId);
+          sourceId = 0;
+        }
+      };
+    },
+    registerCancel: (cancel) => {
+      activeWindowWaitCancels.add(cancel);
+      return () => {
+        activeWindowWaitCancels.delete(cancel);
+      };
+    },
+    launch: () => launchWindow(windowEntry, workspaceIndex),
+    timeoutMs: windowEntry.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+  });
 }
 
 export function enableWindowWaits(): void {
