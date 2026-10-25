@@ -24,3 +24,19 @@ describe('parseSetupOptions', () => {
     );
   });
 });
+
+it.each([
+  [['trabalho'], false, false],
+  [['--force', 'trabalho'], true, false],
+  [['trabalho', '--force'], true, false],
+  [['--include-minimized', '--force', 'trabalho'], true, true],
+])(
+  'parses force/minimized combinations %j',
+  (args, force, includeMinimized) => {
+    expect(parseSetupOptions(args as string[])).toMatchObject({
+      name: 'trabalho',
+      force,
+      includeMinimized,
+    });
+  },
+);
