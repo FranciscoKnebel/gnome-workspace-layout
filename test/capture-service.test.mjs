@@ -83,6 +83,48 @@ describe('captureLayout', () => {
     });
   });
 
+  it.each([false, true])('captures a new name with force=%s', (force) => {
+    layoutExists.mockReturnValue(false);
+    writeLayout.mockReturnValue('/layouts/new.json');
+    getWindows.mockReturnValue([{ get_workspace: () => ({}) }]);
+    capturedWindowDetails.mockReturnValue({
+      appId: 'org.gnome.Calculator.desktop',
+      monitorIndex: 0,
+      rect: { x: 0, y: 0, width: 1920, height: 1080 },
+      title: 'Calculator',
+    });
+    expect(captureLayout('new', false, force).ok).toBe(true);
+    expect(writeLayout).toHaveBeenCalledOnce();
+  });
+
+  it('force replaces the entire stored object without retaining previous groups or entries', () => {
+    let stored = {
+      name: 'trabalho',
+      workspaces: { Old: { windows: [{ command: 'old' }] } },
+      sticky: [{ command: 'old-sticky' }],
+    };
+    const previous = JSON.parse(JSON.stringify(stored));
+    layoutExists.mockReturnValue(true);
+    writeLayout.mockImplementation((_name, layout) => {
+      stored = layout;
+      return '/layouts/trabalho.json';
+    });
+    getWindows.mockReturnValue([{ get_workspace: () => ({}) }]);
+    capturedWindowDetails.mockReturnValue({
+      appId: 'org.gnome.Calculator.desktop',
+      monitorIndex: 0,
+      rect: { x: 0, y: 0, width: 1920, height: 1080 },
+      title: 'Calculator',
+    });
+    expect(captureLayout('trabalho', false, false).ok).toBe(false);
+    expect(stored).toEqual(previous);
+    expect(captureLayout('trabalho', false, true).ok).toBe(true);
+    expect(Object.keys(stored.workspaces)).toEqual(['Workspace 1']);
+    expect(stored.sticky).toBeUndefined();
+    expect(stored.workspaces['Workspace 1'].windows).toHaveLength(1);
+    expect(writeLayout).toHaveBeenCalledOnce();
+  });
+
   it('preserves an existing layout when a forced capture is incomplete', () => {
     layoutExists.mockReturnValue(true);
     getWindows.mockReturnValue([{}]);
