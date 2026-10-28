@@ -121,6 +121,10 @@ Otherwise it records `gtk-launch <desktop-id>` as
 the generic fallback. Raw desktop `Exec=` field codes are not copied into
 layout commands without sanitization.
 
+The layout format accepts any non-empty launch command, including these captured
+commands and manually supplied custom launchers. Omitting `command` requires
+`appId`; `match.wmClass` alone is insufficient.
+
 Electron applications without a readable desktop entry retain their `appId` and
 `match.wmClass`, but have no generated `command`. Add a real launch command manually
 (e.g. `code --new-window`); a window class is never treated as an executable. With

@@ -30,6 +30,11 @@ export type WindowMatch = {
 export type LayoutWindow = {
   label?: string;
   appId?: string;
+  /**
+   * Non-empty launch command, independent of launcher syntax. Capture prefers a
+   * usable new-window action, then sanitized Flatpak Exec, then gtk-launch.
+   * Omit when no reliable command is available; appId is then required.
+   */
   command?: string;
   title?: string;
   match?: WindowMatch;
@@ -150,6 +155,8 @@ function validateWindow(entry: unknown, path: string, errors: string[]): void {
     return;
   }
 
+  // Commands share one validation contract regardless of capture strategy.
+  // Do not restrict this to known launchers: users may supply custom commands.
   if (
     entry.command !== undefined &&
     (typeof entry.command !== 'string' || entry.command.trim() === '')
