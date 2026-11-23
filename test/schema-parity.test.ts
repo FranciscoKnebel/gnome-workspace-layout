@@ -3,6 +3,8 @@ import { resolve } from 'node:path';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { describe, expect, it } from 'vitest';
 import { validateLayout } from '../src/shared/layout.js';
+import type { LayoutFile } from '../src/shared/layout.js';
+import { selectCapturedWindows } from '../src/shared/capture.js';
 
 const schema = JSON.parse(
   readFileSync(resolve('schema/workspace-layout.schema.json'), 'utf8'),
@@ -148,6 +150,31 @@ const cases: Array<{ name: string; layout: unknown; valid: boolean }> = [
 ];
 
 describe('layout schema parity', () => {
+  it('accepts wizard selections in the existing format, including sticky-only layouts', () => {
+    const capture: LayoutFile = {
+      name: 'selected',
+      workspaces: {
+        Code: {
+          windows: [
+            {
+              appId: 'terminal.desktop',
+              monitor: 0,
+              position: 'left',
+              minimized: true,
+            },
+          ],
+        },
+      },
+      sticky: [{ appId: 'chat.desktop', monitor: 1, position: 'right' }],
+    };
+
+    for (const indices of [[0], [1], [0, 1]]) {
+      const selected = selectCapturedWindows(capture, indices);
+      expect(validateSchema(selected)).toBe(true);
+      expect(validateLayout(selected).errors).toEqual([]);
+    }
+  });
+
   it.each(cases)('$name', ({ layout, valid }) => {
     const schemaResult = validateSchema(layout);
     const runtimeResult = validateLayout(layout).errors.length === 0;

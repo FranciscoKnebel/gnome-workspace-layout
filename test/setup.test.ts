@@ -6,6 +6,23 @@ describe('parseSetupOptions', () => {
     expect(
       parseSetupOptions(['--force', 'trabalho', '--include-minimized']),
     ).toEqual({
+      configure: false,
+      force: true,
+      includeMinimized: true,
+      name: 'trabalho',
+    });
+  });
+
+  it('enables the wizard together with the other capture flags', () => {
+    expect(
+      parseSetupOptions([
+        '--configure',
+        'trabalho',
+        '--include-minimized',
+        '--force',
+      ]),
+    ).toEqual({
+      configure: true,
       force: true,
       includeMinimized: true,
       name: 'trabalho',

@@ -2,19 +2,12 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describeGdbusCallFailure, parseGdbusSingleString } from './gdbus.js';
+import type { OperationResult } from '../shared/result.js';
+import { configureSetup } from './configure-setup.js';
+import { callExtension, quoteDbusString } from './extension-client.js';
 import { parseSetupOptions } from './setup.js';
 
-const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
-const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
-const INTERFACE = 'com.franciscoknebel.WorkspaceLayout';
 const EXTENSION_UUID = 'workspace-layout@franciscoknebel.com';
-
-type OperationResult = {
-  ok: boolean;
-  errors: string[];
-  messages: string[];
-};
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -24,18 +17,18 @@ try {
   switch (command) {
     case 'apply':
       requireName(process.argv[3]);
-      printResult(
-        callExtension('Apply', [`"${escapeDbusString(process.argv[3])}"`]),
-      );
+      printResult(callExtension('Apply', [quoteDbusString(process.argv[3])]));
       break;
     case 'setup':
       {
         const setup = parseSetupOptions(process.argv.slice(3));
         printResult(
-          callExtension(setup.force ? 'SetupForce' : 'Setup', [
-            `"${escapeDbusString(setup.name)}"`,
-            setup.includeMinimized ? 'true' : 'false',
-          ]),
+          setup.configure
+            ? await configureSetup(setup)
+            : callExtension(setup.force ? 'SetupForce' : 'Setup', [
+                quoteDbusString(setup.name),
+                setup.includeMinimized ? 'true' : 'false',
+              ]),
         );
       }
       break;
@@ -57,30 +50,6 @@ try {
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
-}
-
-function callExtension(method: string, args: string[]): OperationResult {
-  const result = spawnSync(
-    'gdbus',
-    [
-      'call',
-      '--session',
-      '--dest',
-      BUS_NAME,
-      '--object-path',
-      OBJECT_PATH,
-      '--method',
-      `${INTERFACE}.${method}`,
-      ...args,
-    ],
-    { encoding: 'utf8' },
-  );
-
-  if (result.status !== 0) {
-    throw new Error(describeGdbusCallFailure(method, result.stderr));
-  }
-
-  return JSON.parse(parseGdbusSingleString(result.stdout));
 }
 
 function runDoctor(): void {
@@ -194,19 +163,16 @@ function requireName(name: string | undefined): asserts name is string {
   }
 }
 
-function escapeDbusString(value: string): string {
-  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-}
-
 function printHelp(): void {
   console.log(`workspace-layout
 
 Usage:
-  workspace-layout setup <name> [--include-minimized] [--force]
+  workspace-layout setup <name> [--include-minimized] [--force] [--configure]
   workspace-layout apply <name>
   workspace-layout doctor
   workspace-layout install
 
+Use setup --configure to choose which windows to save in an interactive wizard.
 Layouts are stored in ~/.config/workspace-layout/layouts/<name>.json.
 `);
 }

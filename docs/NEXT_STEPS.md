@@ -1,23 +1,23 @@
 # Next Steps
 
-Last verified: 2026-08-06.
+Last manual GNOME behavior verification: 2026-08-06.
 
 This document records the completed stabilization work, evidence from the
-current GNOME session, and the remaining product decisions.
+last manual GNOME session, and the remaining product decisions.
 
 ## Current State
 
-- `npm run check` passes with 11 test files and 56 tests. Linting, Prettier,
+- `npm run check` passes with 14 test files and 111 tests. Linting, Prettier,
   TypeScript, tests, and builds complete without AJV warnings.
 - `npm run package:release` produces a validated extension ZIP containing
   `extension.js` and `metadata.json` at the root.
 - CI builds and validates release artifacts in addition to running the normal
   checks.
-- The latest extension build is installed with the expected `data_home_t`
-  SELinux context. The current Wayland session still needs logout/login to
-  replace the already-loaded ESM module with that build.
+- The last recorded install had the expected `data_home_t` SELinux context.
+  The interactive setup build still needs local installation and logout/login
+  before live GNOME validation.
 - `workspace-layout doctor` reaches D-Bus and reports 4 monitors and 3
-  workspaces in the current session.
+  workspaces in the last checked session.
 
 ## Completed Stabilization
 
@@ -30,6 +30,37 @@ replacement remains atomic when capture reports an error.
 
 Regression coverage includes mixed valid/invalid captures and all-invalid new
 captures.
+
+### Interactive Setup With `--configure`
+
+`workspace-layout setup <name> --configure` now opens a CLI wizard to select
+which captured windows to keep in the saved layout. It lists application, title,
+workspace, monitor, and minimized/sticky state, accepts individual window numbers
+or `all`, and shows a summary before explicit save confirmation. `edit` revises
+the selection. Live windows are never modified.
+
+The wizard supports `--include-minimized` and `--force`. Previewing writes nothing;
+confirmation sends the selected snapshot to a separate, gated D-Bus save method
+that revalidates it and checks overwrite protection again. Cancellation, Ctrl+C,
+EOF before confirmation, capture errors, invalid/empty selections, and redirected
+input/output cannot silently save or replace a layout. Without `--configure`,
+setup retains its non-interactive behavior. The layout format is unchanged.
+
+Automated coverage exercises selection filtering, sticky/minimized entries,
+confirmation/revision, cancellation, EOF, non-interactive execution, invalid and
+empty selections, and overwrite protection. Live GNOME wizard validation remains
+pending; see [interactive setup](INTERACTIVE_SETUP.md) for protocol details and
+the manual checklist.
+
+The CLI's GVariant decoder accepts both quote delimiters and GLib string escapes.
+A transport regression test exercises preview and save through the real client
+decoder using GLib-formatted output with `gtk-launch` commands and apostrophes in
+window titles. A differential check also passed 200 GLib-generated round-trips.
+
+The compiled CLI also passed real-terminal (PTY) smoke checks with a simulated
+D-Bus executable: subset selection and confirmation, revision with `edit`,
+rejected confirmation, Ctrl+C at confirmation, and EOF at selection. These checks
+did not install the extension or modify live layouts/windows.
 
 ### Release ZIP Validation
 
@@ -92,6 +123,8 @@ D-Bus method.
       `is_on_all_workspaces()` state.
 - [ ] Repeat placement on every physical monitor and visually confirm GNOME's
       index-to-monitor mapping for the current hardware arrangement.
+- [ ] Install the build with `--configure`, log out/in, and complete the
+      [interactive setup manual checks](INTERACTIVE_SETUP.md#manual-gnome-validation).
 
 ## Launch Command Compatibility
 
@@ -125,6 +158,46 @@ An entry containing only `match.wmClass` is still not launchable and would
 require a public layout schema change.
 
 ## Remaining Backlog
+
+### Priority: Reapply Layouts Without Closing Existing Windows
+
+Product requirement: applying a layout to an already-running session must offer
+a way to reuse and reposition matching open windows, launching only missing
+windows. The user must not need to close existing windows before restoring an
+arrangement. This is planned behavior, not implemented functionality.
+
+Acceptance criteria:
+
+- Reuse matching windows and restore their configured workspace, monitor,
+  geometry, minimized state, and sticky state.
+- Launch a new window only when no suitable existing window is available.
+- Assign each existing window to at most one layout entry per operation,
+  including layouts with multiple windows from the same application.
+- Leave unrelated or surplus windows open and unchanged. Never close windows
+  as part of restoring a layout.
+- Applying the same layout repeatedly must not keep creating duplicates when
+  suitable windows already satisfy all entries.
+- Define matching precedence and how ambiguous matches are resolved or reported,
+  including multiple terminals, browser profiles, and PWAs. Do not silently
+  select an unrelated window solely because it belongs to the same application.
+
+Implementation plan:
+
+1. Decide the CLI/API contract: a separate command, an explicit apply option,
+   or a revised default. Keep the current launch-only path unchanged until the
+   new contract is defined, and keep intentional fresh-window launches available.
+2. Model deterministic, one-to-one window assignment and reuse-versus-launch
+   decisions in `src/shared/`, with tests independent of GNOME.
+3. Execute the plan inside the extension, retaining operation gating and the
+   existing new-window detector for entries that still require launching.
+4. Reconcile the existing launch-only architecture guardrails and update README,
+   glossary, architecture decisions, and CLI/D-Bus documentation. If the layout
+   format changes, update types, validation, JSON Schema, and parity tests together.
+5. Test complete reuse, partial reuse, repeated application, duplicate app entries,
+   ambiguous matches, minimized/sticky transitions, and preservation of unrelated
+   windows. Repeat the relevant cases in a real GNOME session.
+
+Prioritize this work before the preferences UI.
 
 ### Release Tag Validation
 

@@ -26,6 +26,11 @@ The extension owns all window operations: workspace lookup, monitor geometry,
 window capture, launching, moving, resizing, and minimizing. The CLI owns user
 experience: command parsing, local installation, and diagnostics.
 
+Interactive setup follows the same division: the extension provides a capture
+preview and validates/saves the confirmed selection over separate D-Bus calls.
+The CLI owns the selection wizard. Waiting for terminal input holds no extension
+operation gate, and previewing a capture does not write a layout file.
+
 Layouts are stored as one JSON file per layout in
 `~/.config/workspace-layout/layouts/<name>.json`. They point to an installed JSON
 Schema at `~/.local/share/workspace-layout/schema/workspace-layout.schema.json`.

@@ -1,5 +1,5 @@
-import type { OperationResult } from './result.js';
-import { result } from './result.js';
+import type { OperationResult } from '../shared/result.js';
+import { result } from '../shared/result.js';
 
 export class OperationGate {
   private inProgress = false;

@@ -48,6 +48,15 @@ The command that captures the current window arrangement into a layout file.
 For each application, it prefers a desktop `new-window` action and otherwise
 records a `gtk-launch` fallback.
 
+With `--configure`, setup opens a CLI wizard to choose which captured windows
+to keep in the layout. Selection changes the saved file, not the live windows.
+
+## Capture Preview
+
+A snapshot of eligible windows returned by the extension without saving a file.
+The interactive setup wizard displays and filters this snapshot; it does not
+recapture windows after the user makes a selection.
+
 ## Apply
 
 The command that launches and positions new windows according to a layout file.

@@ -23,4 +23,9 @@ describe('D-Bus capture methods', () => {
   it('exposes SetupForce with the same capture inputs', () => {
     expect(inputTypes('SetupForce')).toEqual(['s', 'b']);
   });
+
+  it('separates preview from confirmed persistence for the setup wizard', () => {
+    expect(inputTypes('PreviewSetup')).toEqual(['s', 'b', 'b']);
+    expect(inputTypes('SaveSetup')).toEqual(['s', 'b']);
+  });
 });
