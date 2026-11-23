@@ -10,13 +10,16 @@ import {
   capturePreviewResult,
   isCapturePreview,
   isListLayoutsResponse,
+  isOverviewResponse,
   isReadLayoutResponse,
   isStatusResponse,
   listLayoutsResult,
+  overviewResult,
   readLayoutResult,
   statusResult,
   type CapturePreview,
   type ListLayoutsResponse,
+  type OverviewResponse,
   type ReadLayoutResponse,
   type StatusResponse,
 } from '../shared/dbus-responses.js';
@@ -63,6 +66,17 @@ export class ExtensionClient {
       isStatusResponse,
       (errors) => statusResult(null, errors),
       'The extension returned an invalid status.',
+    );
+  }
+
+  getOverview(): OverviewResponse {
+    return this.requestTyped(
+      'GetOverview',
+      '',
+      [],
+      isOverviewResponse,
+      (errors) => overviewResult(null, [], errors),
+      'The extension returned an invalid overview.',
     );
   }
 
@@ -118,11 +132,12 @@ export class ExtensionClient {
           isOperationResult(value)
             ? value
             : operationFailure(
+                'Apply',
                 new Error('The extension returned an invalid result.'),
               ),
         );
       },
-      (error) => callback(operationFailure(error)),
+      (error) => callback(operationFailure('Apply', error)),
     );
   }
 
@@ -142,7 +157,7 @@ export class ExtensionClient {
 
       throw new Error(invalidMessage);
     } catch (error) {
-      return fallback([describe(error)]);
+      return fallback([describe(method, error)]);
     }
   }
 
@@ -239,12 +254,13 @@ function parseRawReply(reply: any): unknown {
   return parsed;
 }
 
-function operationFailure(error: unknown): OperationResult {
-  return result([describe(error)], []);
+function operationFailure(method: string, error: unknown): OperationResult {
+  return result([describe(method, error)], []);
 }
 
-function describe(error: unknown): string {
+function describe(method: string, error: unknown): string {
   return describeDbusFailure(
+    method,
     error instanceof Error ? error.message : String(error),
   );
 }

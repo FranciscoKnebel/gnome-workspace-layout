@@ -1,5 +1,6 @@
 import type { LayoutFile } from './layout.js';
 import { validateLayout } from './layout.js';
+import { validateLayoutSummary } from './layout-summary.js';
 import type { LayoutSummary } from './layout-summary.js';
 import { isRecord } from './objects.js';
 import { isOperationResult, result, type OperationResult } from './result.js';
@@ -24,6 +25,16 @@ export type ReadLayoutResponse = OperationResult & {
 export type StatusResponse = OperationResult & {
   kind: 'GetStatus';
   status: RuntimeStatus | null;
+};
+
+export type Overview = {
+  status: RuntimeStatus | null;
+  layouts: LayoutSummary[];
+};
+
+export type OverviewResponse = OperationResult & {
+  kind: 'GetOverview';
+  overview: Overview;
 };
 
 export function capturePreviewResult(
@@ -74,6 +85,19 @@ export function statusResult(
   };
 }
 
+export function overviewResult(
+  status: RuntimeStatus | null,
+  layouts: LayoutSummary[] = [],
+  errors: string[] = [],
+  messages: string[] = [],
+): OverviewResponse {
+  return {
+    ...result(errors, messages),
+    kind: 'GetOverview',
+    overview: { status, layouts },
+  };
+}
+
 export function isCapturePreview(value: unknown): value is CapturePreview {
   return (
     isOperationResult(value) &&
@@ -90,7 +114,8 @@ export function isListLayoutsResponse(
   return (
     isOperationResult(value) &&
     value.kind === 'ListLayouts' &&
-    Array.isArray(value.layouts)
+    Array.isArray(value.layouts) &&
+    value.layouts.every((layout) => validateLayoutSummary(layout).length === 0)
   );
 }
 
@@ -115,4 +140,26 @@ export function isStatusResponse(value: unknown): value is StatusResponse {
     (value.status === null ||
       (isRecord(value.status) && validateStatus(value.status).length === 0))
   );
+}
+
+export function isOverviewResponse(value: unknown): value is OverviewResponse {
+  if (
+    !isOperationResult(value) ||
+    value.kind !== 'GetOverview' ||
+    !isRecord(value.overview)
+  ) {
+    return false;
+  }
+
+  const overview = value.overview;
+  const statusValid =
+    overview.status === null ||
+    (isRecord(overview.status) && validateStatus(overview.status).length === 0);
+  const layoutsValid =
+    Array.isArray(overview.layouts) &&
+    overview.layouts.every(
+      (layout) => validateLayoutSummary(layout).length === 0,
+    );
+
+  return statusValid && layoutsValid;
 }

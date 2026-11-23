@@ -1,5 +1,6 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
+import { copyLayout } from '../shared/copy.js';
 import {
   editorPosition,
   editorRect,
@@ -410,8 +411,4 @@ export class EditorWindow {
     this.options.onSaved();
     showResult(this.options.parentWindow, 'Layout updated', response);
   }
-}
-
-function copyLayout(layout: LayoutFile): LayoutFile {
-  return JSON.parse(JSON.stringify(layout)) as LayoutFile;
 }

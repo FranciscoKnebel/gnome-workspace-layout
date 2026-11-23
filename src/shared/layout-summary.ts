@@ -1,5 +1,9 @@
 import { isRecord } from './objects.js';
-import { validateLayout } from './layout.js';
+import {
+  isValidLayout,
+  layoutWindowsInApplyOrder,
+  validateLayout,
+} from './layout.js';
 
 export type LayoutEnvironment = {
   workspaces: string[];
@@ -33,8 +37,14 @@ export function summarizeLayout(
   metadata: LayoutSummaryMetadata = {},
 ): LayoutSummary {
   const validation = validateLayout(layout);
-  const workspaces = readWorkspaceNames(layout);
-  const windows = readWindows(layout);
+  const workspaces =
+    isValidLayout(layout) && validation.errors.length === 0
+      ? Object.keys(layout.workspaces)
+      : readWorkspaceNames(layout);
+  const windows: Array<{ monitor?: unknown }> =
+    isValidLayout(layout) && validation.errors.length === 0
+      ? layoutWindowsInApplyOrder(layout).map((target) => target.window)
+      : readWindows(layout);
   const monitors = [
     ...new Set(
       windows.map((window) => window.monitor).filter(isNonNegativeInteger),
@@ -49,7 +59,10 @@ export function summarizeLayout(
     ...(metadata.path === undefined ? {} : { path: metadata.path }),
     windowCount: windows.length,
     workspaceCount: workspaces.length,
-    stickyCount: readStickyEntries(layout).length,
+    stickyCount:
+      isValidLayout(layout) && validation.errors.length === 0
+        ? (layout.sticky?.length ?? 0)
+        : readStickyEntries(layout).length,
     workspaces,
     monitors,
     valid: validation.errors.length === 0,
@@ -72,12 +85,12 @@ function readWorkspaceNames(layout: unknown): string[] {
   return Object.keys(layout.workspaces);
 }
 
-function readWindows(layout: unknown): Record<string, unknown>[] {
+function readWindows(layout: unknown): Array<{ monitor?: unknown }> {
   if (!isRecord(layout)) {
     return [];
   }
 
-  const windows: Record<string, unknown>[] = [];
+  const windows: Array<{ monitor?: unknown }> = [];
 
   if (isRecord(layout.workspaces)) {
     for (const workspace of Object.values(layout.workspaces)) {
@@ -112,4 +125,69 @@ function readStickyEntries(layout: unknown): unknown[] {
 
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+export function validateLayoutSummary(value: unknown): string[] {
+  if (!isRecord(value)) {
+    return ['layout summary must be an object'];
+  }
+
+  const errors: string[] = [];
+
+  if (typeof value.name !== 'string') {
+    errors.push('layout summary.name must be a string');
+  }
+
+  if (typeof value.windowCount !== 'number') {
+    errors.push('layout summary.windowCount must be a number');
+  }
+
+  if (typeof value.workspaceCount !== 'number') {
+    errors.push('layout summary.workspaceCount must be a number');
+  }
+
+  if (typeof value.stickyCount !== 'number') {
+    errors.push('layout summary.stickyCount must be a number');
+  }
+
+  if (
+    !Array.isArray(value.workspaces) ||
+    !value.workspaces.every((name) => typeof name === 'string')
+  ) {
+    errors.push('layout summary.workspaces must contain strings');
+  }
+
+  if (
+    !Array.isArray(value.monitors) ||
+    !value.monitors.every((monitor) => typeof monitor === 'number')
+  ) {
+    errors.push('layout summary.monitors must contain numbers');
+  }
+
+  if (typeof value.valid !== 'boolean') {
+    errors.push('layout summary.valid must be a boolean');
+  }
+
+  if (
+    !Array.isArray(value.errors) ||
+    !value.errors.every((error) => typeof error === 'string')
+  ) {
+    errors.push('layout summary.errors must contain strings');
+  }
+
+  if (
+    !Array.isArray(value.missingWorkspaces) ||
+    !value.missingWorkspaces.every((name) => typeof name === 'string')
+  ) {
+    errors.push('layout summary.missingWorkspaces must contain strings');
+  }
+
+  if (
+    !Array.isArray(value.missingMonitors) ||
+    !value.missingMonitors.every((monitor) => typeof monitor === 'number')
+  ) {
+    errors.push('layout summary.missingMonitors must contain numbers');
+  }
+
+  return errors;
 }

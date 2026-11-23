@@ -49,5 +49,8 @@ export const DBUS_XML = `
     <method name="GetStatus">
       <arg type="s" name="result" direction="out" />
     </method>
+    <method name="GetOverview">
+      <arg type="s" name="result" direction="out" />
+    </method>
   </interface>
 </node>`;

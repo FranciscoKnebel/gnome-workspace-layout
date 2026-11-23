@@ -1,3 +1,4 @@
+import { copyLayout } from './copy.js';
 import type { LayoutFile, WindowPosition } from './layout.js';
 import { layoutWindowsInApplyOrder } from './layout.js';
 
@@ -93,7 +94,7 @@ function updateEditorTarget(
     window: { monitor: number; position: WindowPosition };
   }) => void,
 ): LayoutFile {
-  const copy = JSON.parse(JSON.stringify(layout)) as LayoutFile;
+  const copy = copyLayout(layout);
   const target = layoutWindowsInApplyOrder(copy)[index];
 
   if (target === undefined) {

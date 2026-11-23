@@ -40,4 +40,8 @@ describe('D-Bus preferences methods', () => {
     expect(inputTypes('DeleteLayout')).toEqual(['s']);
     expect(inputTypes('GetStatus')).toEqual([]);
   });
+
+  it('reports status and layouts together for the preferences refresh', () => {
+    expect(inputTypes('GetOverview')).toEqual([]);
+  });
 });

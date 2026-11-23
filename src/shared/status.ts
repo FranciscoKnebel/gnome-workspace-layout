@@ -1,3 +1,5 @@
+import { isRecord } from './objects.js';
+
 export type WorkspaceStatus = {
   index: number;
   name: string;
@@ -21,37 +23,36 @@ export type RuntimeStatus = {
 };
 
 export function validateStatus(value: unknown): string[] {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+  if (!isRecord(value)) {
     return ['status must be an object'];
   }
 
-  const status = value as Record<string, unknown>;
   const errors: string[] = [];
 
-  if (!Array.isArray(status.monitors) || !status.monitors.every(isMonitor)) {
+  if (!Array.isArray(value.monitors) || !value.monitors.every(isMonitor)) {
     errors.push('status.monitors must contain valid monitor entries');
   }
 
   if (
-    !Array.isArray(status.workspaces) ||
-    !status.workspaces.every(isWorkspace)
+    !Array.isArray(value.workspaces) ||
+    !value.workspaces.every(isWorkspace)
   ) {
     errors.push('status.workspaces must contain valid workspace entries');
   }
 
   if (
-    typeof status.activeWorkspaceIndex !== 'number' ||
-    !Number.isInteger(status.activeWorkspaceIndex) ||
-    status.activeWorkspaceIndex < 0
+    typeof value.activeWorkspaceIndex !== 'number' ||
+    !Number.isInteger(value.activeWorkspaceIndex) ||
+    value.activeWorkspaceIndex < 0
   ) {
     errors.push('status.activeWorkspaceIndex must be a non-negative integer');
   }
 
-  if (typeof status.layoutsDir !== 'string') {
+  if (typeof value.layoutsDir !== 'string') {
     errors.push('status.layoutsDir must be a string');
   }
 
-  if (typeof status.schemaPath !== 'string') {
+  if (typeof value.schemaPath !== 'string') {
     errors.push('status.schemaPath must be a string');
   }
 
@@ -59,30 +60,28 @@ export function validateStatus(value: unknown): string[] {
 }
 
 function isMonitor(value: unknown): boolean {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+  if (!isRecord(value)) {
     return false;
   }
 
-  const monitor = value as Record<string, unknown>;
   return ['index', 'x', 'y', 'width', 'height'].every(
     (key) =>
-      typeof monitor[key] === 'number' &&
-      Number.isFinite(monitor[key]) &&
-      (monitor[key] as number) >= 0,
+      typeof value[key] === 'number' &&
+      Number.isFinite(value[key]) &&
+      value[key] >= 0,
   );
 }
 
 function isWorkspace(value: unknown): boolean {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+  if (!isRecord(value)) {
     return false;
   }
 
-  const workspace = value as Record<string, unknown>;
   return (
-    typeof workspace.index === 'number' &&
-    Number.isInteger(workspace.index) &&
-    workspace.index >= 0 &&
-    typeof workspace.name === 'string' &&
-    typeof workspace.active === 'boolean'
+    typeof value.index === 'number' &&
+    Number.isInteger(value.index) &&
+    value.index >= 0 &&
+    typeof value.name === 'string' &&
+    typeof value.active === 'boolean'
   );
 }

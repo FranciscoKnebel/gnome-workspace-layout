@@ -3,6 +3,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { assertLayout, LAYOUT_SCHEMA_ID } from '../shared/layout.js';
 import {
   listLayoutsResult,
+  overviewResult,
   readLayoutResult,
   statusResult,
 } from '../shared/dbus-responses.js';
@@ -63,24 +64,15 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   Apply(name: string): string {
-    return this.runGated(
-      () => applyLayout(name),
-      (error) => result([String(error)], []),
-    );
+    return this.runGated(() => applyLayout(name));
   }
 
   Setup(name: string, includeMinimized: boolean): string {
-    return this.runGated(
-      () => captureLayout(name, includeMinimized, false),
-      (error) => result([String(error)], []),
-    );
+    return this.runGated(() => captureLayout(name, includeMinimized, false));
   }
 
   SetupForce(name: string, includeMinimized: boolean): string {
-    return this.runGated(
-      () => captureLayout(name, includeMinimized, true),
-      (error) => result([String(error)], []),
-    );
+    return this.runGated(() => captureLayout(name, includeMinimized, true));
   }
 
   PreviewSetup(
@@ -88,35 +80,26 @@ export default class WorkspaceLayoutExtension extends Extension {
     includeMinimized: boolean,
     force: boolean,
   ): string {
-    return this.runRead(
-      () => previewCapture(name, includeMinimized, force),
-      (error) => result([String(error)], []),
-    );
+    return this.runRead(() => previewCapture(name, includeMinimized, force));
   }
 
   SaveSetup(layout: string, force: boolean): string {
-    return this.runGated(
-      () => saveCapture(layout, force),
-      (error) => result([String(error)], []),
-    );
+    return this.runGated(() => saveCapture(layout, force));
   }
 
   Doctor(): string {
-    return this.runRead(
-      () => ({
-        ok: true,
-        errors: [],
-        messages: [
-          `D-Bus name: ${BUS_NAME}`,
-          `D-Bus object path: ${OBJECT_PATH}`,
-          `Layouts directory: ${layoutsDir()}`,
-          `Schema id: ${LAYOUT_SCHEMA_ID}`,
-          `Monitors detected: ${getMonitorCount()}`,
-          `Workspaces detected: ${getWorkspaceCount()}`,
-        ],
-      }),
-      (error) => result([String(error)], []),
-    );
+    return this.runRead(() => ({
+      ok: true,
+      errors: [],
+      messages: [
+        `D-Bus name: ${BUS_NAME}`,
+        `D-Bus object path: ${OBJECT_PATH}`,
+        `Layouts directory: ${layoutsDir()}`,
+        `Schema id: ${LAYOUT_SCHEMA_ID}`,
+        `Monitors detected: ${getMonitorCount()}`,
+        `Workspaces detected: ${getWorkspaceCount()}`,
+      ],
+    }));
   }
 
   ListLayouts(): string {
@@ -146,13 +129,10 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   DeleteLayout(name: string): string {
-    return this.runGated(
-      () => {
-        const path = deleteLayout(name);
-        return result([], [`Deleted ${path}`]);
-      },
-      (error) => result([String(error)], []),
-    );
+    return this.runGated(() => {
+      const path = deleteLayout(name);
+      return result([], [`Deleted ${path}`]);
+    });
   }
 
   GetStatus(): string {
@@ -162,9 +142,26 @@ export default class WorkspaceLayoutExtension extends Extension {
     );
   }
 
+  GetOverview(): string {
+    return this.runRead(
+      () => {
+        const status = runtimeStatus();
+        return overviewResult(
+          status,
+          listLayouts({
+            workspaces: status.workspaces.map((workspace) => workspace.name),
+            monitors: status.monitors.map((monitor) => monitor.index),
+          }),
+        );
+      },
+      (error) => overviewResult(null, [], [String(error)]),
+    );
+  }
+
   private runGated<T extends OperationResult>(
     factory: () => T,
-    fallback: (error: unknown) => T,
+    fallback: (error: unknown) => T = (error) =>
+      result([String(error)], []) as unknown as T,
   ): string {
     return JSON.stringify(
       this.operations.run(() => this.withFallback(factory, fallback)),
@@ -173,7 +170,8 @@ export default class WorkspaceLayoutExtension extends Extension {
 
   private runRead<T extends OperationResult>(
     factory: () => T,
-    fallback: (error: unknown) => T,
+    fallback: (error: unknown) => T = (error) =>
+      result([String(error)], []) as unknown as T,
   ): string {
     return JSON.stringify(this.withFallback(factory, fallback));
   }

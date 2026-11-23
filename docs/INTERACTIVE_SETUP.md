@@ -65,6 +65,8 @@ The preferences window uses four additional methods:
 - `DeleteLayout(name: s)` removes one layout file.
 - `GetStatus()` returns `status` with monitors, workspaces, the active workspace
   index, the layouts directory, and the schema path.
+- `GetOverview()` returns both `status` and `layouts` in one call. The preferences
+  window uses it for refresh so the runtime state is computed once.
 
 `ListLayouts`, `ReadLayout`, and `GetStatus` are read-only and remain available
 while another operation runs. `DeleteLayout` and `SaveSetup` use the operation

@@ -2,12 +2,19 @@ export const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
 export const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
 export const INTERFACE_NAME = 'com.franciscoknebel.WorkspaceLayout';
 
-export function describeDbusFailure(message: string): string {
+export function describeDbusFailure(method: string, message: string): string {
   if (
-    message.includes('org.freedesktop.DBus.Error.UnknownMethod') ||
-    message.includes('UnknownMethod') ||
-    message.includes('Unknown method')
+    (method === 'PreviewSetup' || method === 'SaveSetup') &&
+    message.includes('UnknownMethod')
   ) {
+    return 'The running extension does not support --configure. Reinstall the extension and log out/in, then try again.';
+  }
+
+  if (method === 'SetupForce' && message.includes('UnknownMethod')) {
+    return 'The running extension does not support --force. Restart GNOME Shell or log out/in, then try again.';
+  }
+
+  if (message.includes('UnknownMethod') || message.includes('Unknown method')) {
     return 'The installed extension is older than this client. Reinstall it and restart GNOME Shell.';
   }
 
@@ -30,7 +37,10 @@ export function describeDbusFailure(message: string): string {
     return 'Another workspace-layout operation is already running. Wait for it to finish and try again.';
   }
 
-  if (message.includes('org.freedesktop.DBus.Error.Timeout')) {
+  if (
+    message.includes('org.freedesktop.DBus.Error.Timeout') ||
+    message.includes('Timeout was reached')
+  ) {
     return 'The extension did not answer in time. It may still be applying the layout.';
   }
 

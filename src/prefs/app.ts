@@ -53,22 +53,15 @@ export class WorkspaceLayoutApp {
   }
 
   refresh(): void {
-    const statusResponse = this.client.getStatus();
-    const layoutsResponse = this.client.listLayouts();
+    const overview = this.client.getOverview();
 
-    this.status = statusResponse.status;
-    this.layouts = layoutsResponse.layouts;
-    this.connected = layoutsResponse.ok;
-    this.layoutsPage.setLayouts(
-      this.layouts,
-      this.connected,
-      layoutsResponse.errors.join('\n') || null,
-    );
+    this.status = overview.overview.status;
+    this.layouts = overview.overview.layouts;
+    this.connected = overview.ok;
+    const error = overview.errors.join('\n') || null;
+    this.layoutsPage.setLayouts(this.layouts, this.connected, error);
     this.capturePage.setLayouts(this.layouts, this.connected);
-    this.statusPage.setStatus(
-      this.status,
-      statusResponse.ok ? null : statusResponse.errors.join('\n'),
-    );
+    this.statusPage.setStatus(this.status, error);
     this.setBusy(this.busy);
   }
 
