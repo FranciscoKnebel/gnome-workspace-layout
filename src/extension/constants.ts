@@ -1,10 +1,12 @@
-export const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
-export const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
+import { BUS_NAME, INTERFACE_NAME, OBJECT_PATH } from '../shared/dbus.js';
+
+export { BUS_NAME, INTERFACE_NAME, OBJECT_PATH };
+
 export const DEFAULT_TIMEOUT_MS = 10000;
 
 export const DBUS_XML = `
 <node>
-  <interface name="com.franciscoknebel.WorkspaceLayout">
+  <interface name="${INTERFACE_NAME}">
     <method name="Apply">
       <arg type="s" name="name" direction="in" />
       <arg type="s" name="result" direction="out" />

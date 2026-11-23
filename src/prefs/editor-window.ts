@@ -2,6 +2,7 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import { absoluteToRelative } from '../shared/geometry.js';
 import {
+  clampEditorRect,
   editorPosition,
   editorRect,
   editorTargets,
@@ -468,9 +469,7 @@ export class EditorWindow {
       this.monitorRect(),
     );
     const next = { ...relative, [field]: value / 100 };
-    let rect = editorRect(next, size);
-    rect = moveEditorRect(rect, 0, 0, size);
-    rect = resizeEditorRect(rect, 'se', 0, 0, size);
+    const rect = clampEditorRect(editorRect(next, size), size);
     this.layout = withEditorPosition(
       this.layout,
       this.selectedIndex,

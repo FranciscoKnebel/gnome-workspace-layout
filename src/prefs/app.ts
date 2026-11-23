@@ -2,6 +2,7 @@ import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import type { LayoutSummary } from '../shared/layout-summary.js';
+import { workspaceLayoutPaths } from '../shared/paths.js';
 import type { RuntimeStatus } from '../shared/status.js';
 import { CapturePage } from './capture-page.js';
 import { APPLY_TIMEOUT_MS, ExtensionClient } from './client.js';
@@ -55,8 +56,8 @@ export class WorkspaceLayoutApp {
     const statusResponse = this.client.call('GetStatus', '', []);
     const layoutsResponse = this.client.call('ListLayouts', '', []);
 
-    this.status = statusResponse.status ?? null;
-    this.layouts = layoutsResponse.layouts ?? [];
+    this.status = statusResponse.status;
+    this.layouts = layoutsResponse.layouts;
     this.connected = layoutsResponse.ok;
     this.layoutsPage.setLayouts(
       this.layouts,
@@ -251,7 +252,7 @@ export class WorkspaceLayoutApp {
 
     const response = this.client.call('ReadLayout', 's', [summary.name]);
 
-    if (!response.ok || response.layout === undefined) {
+    if (!response.ok || response.layout === null) {
       showError(
         this.window,
         'Could not read layout',
@@ -312,13 +313,11 @@ export class WorkspaceLayoutApp {
   }
 
   private openLayoutsFolder(): void {
-    const directory =
-      this.status?.layoutsDir ??
-      GLib.build_filenamev([
-        GLib.get_user_config_dir(),
-        'workspace-layout',
-        'layouts',
-      ]);
+    const fallbackPaths = workspaceLayoutPaths(
+      GLib.get_user_config_dir(),
+      GLib.get_user_data_dir(),
+    );
+    const directory = this.status?.layoutsDir ?? fallbackPaths.layoutsDir;
 
     if (!GLib.file_test(directory, GLib.FileTest.IS_DIR)) {
       showError(

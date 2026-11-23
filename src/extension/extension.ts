@@ -131,7 +131,7 @@ export default class WorkspaceLayoutExtension extends Extension {
       assertLayout(layout);
       return JSON.stringify(readLayoutResult(layout));
     } catch (error) {
-      return JSON.stringify(readLayoutResult(undefined, [String(error)]));
+      return JSON.stringify(readLayoutResult(null, [String(error)]));
     }
   }
 
@@ -152,7 +152,7 @@ export default class WorkspaceLayoutExtension extends Extension {
     try {
       return JSON.stringify(statusResult(runtimeStatus()));
     } catch (error) {
-      return JSON.stringify(statusResult(undefined, [String(error)]));
+      return JSON.stringify(statusResult(null, [String(error)]));
     }
   }
 }

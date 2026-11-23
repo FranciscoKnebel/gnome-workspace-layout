@@ -1,3 +1,5 @@
+import { describeDbusFailure } from '../shared/dbus.js';
+
 export function parseGdbusSingleString(output: string): string {
   const trimmed = output.trim();
   const match =
@@ -16,18 +18,7 @@ export function describeGdbusCallFailure(
   method: string,
   stderr: string,
 ): string {
-  if (
-    (method === 'PreviewSetup' || method === 'SaveSetup') &&
-    stderr.includes('UnknownMethod')
-  ) {
-    return 'The running extension does not support --configure. Reinstall the extension and log out/in, then try again.';
-  }
-
-  if (method === 'SetupForce' && stderr.includes('UnknownMethod')) {
-    return 'The running extension does not support --force. Restart GNOME Shell or log out/in, then try again.';
-  }
-
-  return `Failed to call extension via D-Bus. Is Workspace Layout enabled?\n${stderr.trim()}`;
+  return describeDbusFailure(method, stderr);
 }
 
 function unescapeGVariantString(value: string): string {

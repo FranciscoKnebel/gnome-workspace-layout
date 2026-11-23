@@ -1,11 +1,14 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import type { ExtensionResponse } from '../shared/dbus-responses.js';
+import {
+  BUS_NAME,
+  describeDbusFailure,
+  INTERFACE_NAME,
+  OBJECT_PATH,
+} from '../shared/dbus.js';
+import type { DbusMethod, DbusResponseFor } from '../shared/dbus-responses.js';
 import type { OperationResult } from '../shared/result.js';
 
-const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
-const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
-const INTERFACE_NAME = 'com.franciscoknebel.WorkspaceLayout';
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export const APPLY_TIMEOUT_MS = 600_000;
@@ -13,12 +16,12 @@ export const APPLY_TIMEOUT_MS = 600_000;
 export class ExtensionClient {
   private proxy: any = null;
 
-  call(
-    method: string,
+  call<M extends DbusMethod>(
+    method: M,
     signature: string,
     values: unknown[],
     timeoutMs = DEFAULT_TIMEOUT_MS,
-  ): ExtensionResponse {
+  ): DbusResponseFor<M> {
     try {
       const reply = this.getProxy().call_sync(
         method,
@@ -27,25 +30,25 @@ export class ExtensionClient {
         timeoutMs,
         null,
       );
-      return parseReply(reply);
+      return parseReply(reply, method);
     } catch (error) {
-      return errorResponse(error);
+      return failureFor(method, error);
     }
   }
 
-  callAsync(
-    method: string,
+  callAsync<M extends DbusMethod>(
+    method: M,
     signature: string,
     values: unknown[],
     timeoutMs: number,
-    callback: (response: ExtensionResponse) => void,
+    callback: (response: DbusResponseFor<M>) => void,
   ): void {
     let parameters: any;
 
     try {
       parameters = makeParameters(signature, values);
     } catch (error) {
-      callback(errorResponse(error));
+      callback(failureFor(method, error));
       return;
     }
 
@@ -57,19 +60,19 @@ export class ExtensionClient {
         timeoutMs,
         null,
         (proxy: any, result: any) => {
-          let response: ExtensionResponse;
+          let response: DbusResponseFor<M>;
 
           try {
-            response = parseReply(proxy.call_finish(result));
+            response = parseReply(proxy.call_finish(result), method);
           } catch (error) {
-            response = errorResponse(error);
+            response = failureFor(method, error);
           }
 
           callback(response);
         },
       );
     } catch (error) {
-      callback(errorResponse(error));
+      callback(failureFor(method, error));
     }
   }
 
@@ -98,7 +101,10 @@ function makeParameters(signature: string, values: unknown[]): any {
   return new GLib.Variant(`(${signature})`, values);
 }
 
-function parseReply(reply: any): ExtensionResponse {
+function parseReply<M extends DbusMethod>(
+  reply: any,
+  method: M,
+): DbusResponseFor<M> {
   const [serialized] = reply.deep_unpack();
 
   if (typeof serialized !== 'string') {
@@ -107,68 +113,70 @@ function parseReply(reply: any): ExtensionResponse {
 
   const parsed: unknown = JSON.parse(serialized);
 
-  if (!isOperationResult(parsed)) {
+  if (!isOperationResult(parsed) || !hasValidPayload(method, parsed)) {
     throw new Error('The extension returned an invalid operation result.');
   }
 
-  return parsed;
+  return parsed as DbusResponseFor<M>;
 }
 
-function errorResponse(error: unknown): ExtensionResponse {
-  return {
-    ok: false,
-    errors: [describeError(error)],
-    messages: [],
-  };
-}
-
-function describeError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-
-  if (
-    includesAny(message, [
-      'ServiceUnknown',
-      'NameHasNoOwner',
-      'not activatable',
-      'Could not connect',
-    ])
-  ) {
-    return 'Workspace Layout is not running. Enable the extension in GNOME Extensions and make sure the session is unlocked.';
-  }
-
-  if (includesAny(message, ['UnknownMethod', 'Unknown method'])) {
-    return 'The installed extension is older than this preferences window. Reinstall it and restart GNOME Shell.';
-  }
-
-  if (
-    message.includes('Another workspace-layout operation is already running')
-  ) {
-    return 'Another Workspace Layout operation is already running. Wait for it to finish and try again.';
-  }
-
-  if (message.includes('Timeout was reached')) {
-    return 'The extension did not answer in time. It may still be applying the layout.';
-  }
-
-  return message;
-}
-
-function includesAny(value: string, candidates: string[]): boolean {
-  return candidates.some((candidate) => value.includes(candidate));
-}
-
-function isOperationResult(value: unknown): value is OperationResult {
-  if (typeof value !== 'object' || value === null) {
+function hasValidPayload(method: DbusMethod, value: unknown): boolean {
+  if (!isRecord(value)) {
     return false;
   }
 
-  const result = value as Record<string, unknown>;
+  switch (method) {
+    case 'ListLayouts':
+      return Array.isArray(value.layouts);
+    case 'ReadLayout':
+      return 'layout' in value;
+    case 'GetStatus':
+      return 'status' in value;
+    default:
+      return true;
+  }
+}
+
+function failureFor<M extends DbusMethod>(
+  method: M,
+  error: unknown,
+): DbusResponseFor<M> {
+  const base = {
+    ok: false,
+    errors: [describeDbusFailure(method, stringify(error))],
+    messages: [],
+  };
+
+  switch (method) {
+    case 'ListLayouts':
+      return { ...base, layouts: [] } as unknown as DbusResponseFor<M>;
+    case 'ReadLayout':
+      return { ...base, layout: null } as unknown as DbusResponseFor<M>;
+    case 'GetStatus':
+      return { ...base, status: null } as unknown as DbusResponseFor<M>;
+    default:
+      return base as unknown as DbusResponseFor<M>;
+  }
+}
+
+function stringify(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isOperationResult(value: unknown): value is OperationResult {
+  if (!isRecord(value)) {
+    return false;
+  }
 
   return (
-    typeof result.ok === 'boolean' &&
-    Array.isArray(result.errors) &&
-    result.errors.every((error) => typeof error === 'string') &&
-    Array.isArray(result.messages) &&
-    result.messages.every((message) => typeof message === 'string')
+    typeof value.ok === 'boolean' &&
+    Array.isArray(value.errors) &&
+    value.errors.every((error) => typeof error === 'string') &&
+    Array.isArray(value.messages) &&
+    value.messages.every((message) => typeof message === 'string')
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { LayoutFile } from '../src/shared/layout.js';
 import {
   EDITOR_MIN_SIZE_PX,
+  clampEditorRect,
   editorPosition,
   editorRect,
   editorTargets,
@@ -102,6 +103,28 @@ describe('editorRect and editorPosition', () => {
       y: 0.0926,
       width: 0.2083,
       height: 0.2778,
+    });
+  });
+});
+
+describe('clampEditorRect', () => {
+  it('keeps a rectangle inside the monitor with a minimum size', () => {
+    expect(
+      clampEditorRect({ x: -100, y: -50, width: 10, height: 10 }, monitor),
+    ).toEqual({
+      x: 0,
+      y: 0,
+      width: EDITOR_MIN_SIZE_PX,
+      height: EDITOR_MIN_SIZE_PX,
+    });
+
+    expect(
+      clampEditorRect({ x: 3000, y: 2000, width: 5000, height: 5000 }, monitor),
+    ).toEqual({
+      x: 0,
+      y: 0,
+      width: monitor.width,
+      height: monitor.height,
     });
   });
 });

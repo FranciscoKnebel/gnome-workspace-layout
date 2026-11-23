@@ -60,6 +60,23 @@ export function editorPosition(
   return detectPosition(rect, { x: 0, y: 0, ...monitor });
 }
 
+export function clampEditorRect(
+  rect: EditorRect,
+  monitor: EditorMonitor,
+): EditorRect {
+  const minWidth = Math.min(EDITOR_MIN_SIZE_PX, monitor.width);
+  const minHeight = Math.min(EDITOR_MIN_SIZE_PX, monitor.height);
+  const width = clamp(rect.width, minWidth, monitor.width);
+  const height = clamp(rect.height, minHeight, monitor.height);
+
+  return {
+    x: clamp(rect.x, 0, monitor.width - width),
+    y: clamp(rect.y, 0, monitor.height - height),
+    width,
+    height,
+  };
+}
+
 export function moveEditorRect(
   rect: EditorRect,
   dx: number,

@@ -129,7 +129,7 @@ export class RemapDialog {
       this.options.summary.name,
     ]);
 
-    if (!read.ok || read.layout === undefined) {
+    if (!read.ok || read.layout === null) {
       this.setBusy(false);
       this.showError(read.errors.join('\n'));
       return;

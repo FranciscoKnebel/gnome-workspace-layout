@@ -1,6 +1,7 @@
 import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
+import { workspaceLayoutPaths } from '../shared/paths.js';
 import type { RuntimeStatus } from '../shared/status.js';
 import { RowGroup, singleLine } from './ui.js';
 
@@ -86,21 +87,12 @@ export class StatusPage {
     this.refreshButton.connect('clicked', this.options.onRefresh);
     connectionRow.add_suffix(this.refreshButton);
 
-    const layoutsDirectory =
-      status?.layoutsDir ??
-      GLib.build_filenamev([
-        GLib.get_user_config_dir(),
-        'workspace-layout',
-        'layouts',
-      ]);
-    const schemaPath =
-      status?.schemaPath ??
-      GLib.build_filenamev([
-        GLib.get_user_data_dir(),
-        'workspace-layout',
-        'schema',
-        'workspace-layout.schema.json',
-      ]);
+    const fallbackPaths = workspaceLayoutPaths(
+      GLib.get_user_config_dir(),
+      GLib.get_user_data_dir(),
+    );
+    const layoutsDirectory = status?.layoutsDir ?? fallbackPaths.layoutsDir;
+    const schemaPath = status?.schemaPath ?? fallbackPaths.schemaPath;
 
     const layoutsRow = new Adw.ActionRow({
       title: 'Layouts folder',

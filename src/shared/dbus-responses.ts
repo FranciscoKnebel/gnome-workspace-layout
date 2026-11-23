@@ -6,18 +6,35 @@ import type { RuntimeStatus } from './status.js';
 export type CapturePreview = OperationResult & { layout?: LayoutFile };
 
 export type ListLayoutsResponse = OperationResult & {
-  layouts?: LayoutSummary[];
+  layouts: LayoutSummary[];
 };
 
-export type ReadLayoutResponse = OperationResult & { layout?: LayoutFile };
-
-export type StatusResponse = OperationResult & { status?: RuntimeStatus };
-
-export type ExtensionResponse = OperationResult & {
-  layout?: LayoutFile;
-  layouts?: LayoutSummary[];
-  status?: RuntimeStatus;
+export type ReadLayoutResponse = OperationResult & {
+  layout: LayoutFile | null;
 };
+
+export type StatusResponse = OperationResult & {
+  status: RuntimeStatus | null;
+};
+
+export type DbusMethod =
+  | 'Apply'
+  | 'PreviewSetup'
+  | 'SaveSetup'
+  | 'DeleteLayout'
+  | 'ListLayouts'
+  | 'ReadLayout'
+  | 'GetStatus';
+
+export type DbusResponseFor<M extends DbusMethod> = M extends 'ListLayouts'
+  ? ListLayoutsResponse
+  : M extends 'ReadLayout'
+    ? ReadLayoutResponse
+    : M extends 'GetStatus'
+      ? StatusResponse
+      : M extends 'PreviewSetup'
+        ? CapturePreview
+        : OperationResult;
 
 export function listLayoutsResult(
   layouts: LayoutSummary[] = [],
@@ -28,23 +45,17 @@ export function listLayoutsResult(
 }
 
 export function readLayoutResult(
-  layout: LayoutFile | undefined,
+  layout: LayoutFile | null,
   errors: string[] = [],
   messages: string[] = [],
 ): ReadLayoutResponse {
-  return {
-    ...result(errors, messages),
-    ...(layout === undefined ? {} : { layout }),
-  };
+  return { ...result(errors, messages), layout };
 }
 
 export function statusResult(
-  status: RuntimeStatus | undefined,
+  status: RuntimeStatus | null,
   errors: string[] = [],
   messages: string[] = [],
 ): StatusResponse {
-  return {
-    ...result(errors, messages),
-    ...(status === undefined ? {} : { status }),
-  };
+  return { ...result(errors, messages), status };
 }

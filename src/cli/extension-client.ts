@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { BUS_NAME, INTERFACE_NAME, OBJECT_PATH } from '../shared/dbus.js';
 import type { OperationResult } from '../shared/result.js';
 import { describeGdbusCallFailure, parseGdbusSingleString } from './gdbus.js';
 
@@ -16,11 +17,11 @@ export function callExtension<T extends OperationResult = OperationResult>(
       String(DBUS_TIMEOUT_SECONDS),
       '--session',
       '--dest',
-      'com.franciscoknebel.WorkspaceLayout',
+      BUS_NAME,
       '--object-path',
-      '/com/franciscoknebel/WorkspaceLayout',
+      OBJECT_PATH,
       '--method',
-      `com.franciscoknebel.WorkspaceLayout.${method}`,
+      `${INTERFACE_NAME}.${method}`,
       ...args,
     ],
     { encoding: 'utf8' },
