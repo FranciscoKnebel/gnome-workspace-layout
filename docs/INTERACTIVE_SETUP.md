@@ -56,9 +56,25 @@ If a layout appears after preview, saving without `--force` still rejects the
 overwrite. With `--force`, confirmation authorizes replacing the file at save
 time, without a backup or merge.
 
+The preferences window uses four additional methods:
+
+- `ListLayouts()` returns `layouts`, an array of layout summaries with counts,
+  validity, missing workspaces and monitors, file path, and modification time.
+  It reads the current workspace names and monitor indexes in the same call.
+- `ReadLayout(name: s)` returns the parsed `layout` for remapping.
+- `DeleteLayout(name: s)` removes one layout file.
+- `GetStatus()` returns `status` with monitors, workspaces, the active workspace
+  index, the layouts directory, and the schema path.
+
+`ListLayouts`, `ReadLayout`, and `GetStatus` are read-only and remain available
+while another operation runs. `DeleteLayout` and `SaveSetup` use the operation
+gate. Layout names are validated before any file path is built, so a name cannot
+escape the layouts directory.
+
 An older running extension may lack these new methods. Reinstall and log out/in
 before using the wizard; the CLI reports this mismatch instead of saving through
-the legacy non-interactive path.
+the legacy non-interactive path. The preferences window reports the same mismatch
+when a method is missing.
 
 ## Manual GNOME Validation
 
@@ -82,3 +98,34 @@ After `npm run install:local`, log out/in and enable the extension. Then:
    extension operation gate.
 7. Try redirecting stdin or stdout. Expect an interactive-terminal error before
    any capture or save. Check the GNOME journal for extension errors.
+
+## Manual Preferences Validation
+
+Open the preferences window with:
+
+```bash
+gnome-extensions prefs workspace-layout@franciscoknebel.com
+```
+
+Then:
+
+1. Check that Layouts lists every file in the layouts folder, including invalid
+   JSON, and that counts, paths, and modification times match the files.
+2. Capture a layout from the Capture page, uncheck one window, save it, and
+   confirm the file contains only the checked entries. Confirm live windows did
+   not change.
+3. Rename a workspace in GNOME Settings, refresh Status, and confirm the layout
+   reports the old name as missing. Use Remap to choose a current workspace and
+   confirm the file is rewritten in place.
+4. Open Edit on a layout. Drag a rectangle, resize it with the handles, apply a
+   preset, and enter exact percentages. Save and inspect the layout file to
+   confirm only `position` and `monitor` changed. Revert and confirm the file is
+   unchanged until Save.
+5. Apply a layout and confirm new windows are placed on the mapped workspaces and
+   monitors. Confirm windows that were already open were not moved or closed.
+6. Try Apply on a layout with a missing monitor, then cancel and apply anyway.
+   Confirm the result dialog reports which windows could not be placed.
+7. Delete a layout and confirm only that file is removed. Open a layout file and
+   the layouts folder from the preferences window.
+8. Disable the extension and refresh. Confirm the window reports that Workspace
+   Layout is not running instead of crashing or writing files.

@@ -33,5 +33,19 @@ export const DBUS_XML = `
     <method name="Doctor">
       <arg type="s" name="result" direction="out" />
     </method>
+    <method name="ListLayouts">
+      <arg type="s" name="result" direction="out" />
+    </method>
+    <method name="ReadLayout">
+      <arg type="s" name="name" direction="in" />
+      <arg type="s" name="result" direction="out" />
+    </method>
+    <method name="DeleteLayout">
+      <arg type="s" name="name" direction="in" />
+      <arg type="s" name="result" direction="out" />
+    </method>
+    <method name="GetStatus">
+      <arg type="s" name="result" direction="out" />
+    </method>
   </interface>
 </node>`;

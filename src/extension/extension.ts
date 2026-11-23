@@ -1,6 +1,6 @@
 import Gio from 'gi://Gio';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
-import { LAYOUT_SCHEMA_ID } from '../shared/layout.js';
+import { assertLayout, LAYOUT_SCHEMA_ID } from '../shared/layout.js';
 import { applyLayout } from './apply-service.js';
 import { BUS_NAME, DBUS_XML, OBJECT_PATH } from './constants.js';
 import {
@@ -8,9 +8,11 @@ import {
   previewCapture,
   saveCapture,
 } from './capture-service.js';
+import { deleteLayout, listLayouts, readLayout } from './layout-store.js';
 import { OperationGate } from './operation-gate.js';
 import { layoutsDir } from './paths.js';
-import type { OperationResult } from '../shared/result.js';
+import { result, type OperationResult } from '../shared/result.js';
+import { runtimeStatus } from './status-service.js';
 import {
   cancelWindowWaits,
   enableWindowWaits,
@@ -100,5 +102,54 @@ export default class WorkspaceLayoutExtension extends Extension {
         `Workspaces detected: ${getWorkspaceCount()}`,
       ],
     } satisfies OperationResult);
+  }
+
+  ListLayouts(): string {
+    try {
+      const status = runtimeStatus();
+      return JSON.stringify(
+        Object.assign(result([], []), {
+          layouts: listLayouts({
+            workspaces: status.workspaces.map((workspace) => workspace.name),
+            monitors: status.monitors.map((monitor) => monitor.index),
+          }),
+        }),
+      );
+    } catch (error) {
+      return JSON.stringify(result([String(error)], []));
+    }
+  }
+
+  ReadLayout(name: string): string {
+    try {
+      const layout = readLayout(name);
+      assertLayout(layout);
+      return JSON.stringify(Object.assign(result([], []), { layout }));
+    } catch (error) {
+      return JSON.stringify(result([String(error)], []));
+    }
+  }
+
+  DeleteLayout(name: string): string {
+    return JSON.stringify(
+      this.operations.run(() => {
+        try {
+          const path = deleteLayout(name);
+          return result([], [`Deleted ${path}`]);
+        } catch (error) {
+          return result([String(error)], []);
+        }
+      }),
+    );
+  }
+
+  GetStatus(): string {
+    try {
+      return JSON.stringify(
+        Object.assign(result([], []), { status: runtimeStatus() }),
+      );
+    } catch (error) {
+      return JSON.stringify(result([String(error)], []));
+    }
   }
 }

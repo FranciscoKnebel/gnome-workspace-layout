@@ -2,6 +2,8 @@ import { spawnSync } from 'node:child_process';
 import type { OperationResult } from '../shared/result.js';
 import { describeGdbusCallFailure, parseGdbusSingleString } from './gdbus.js';
 
+const DBUS_TIMEOUT_SECONDS = 900;
+
 export function callExtension<T extends OperationResult = OperationResult>(
   method: string,
   args: string[],
@@ -10,6 +12,8 @@ export function callExtension<T extends OperationResult = OperationResult>(
     'gdbus',
     [
       'call',
+      '--timeout',
+      String(DBUS_TIMEOUT_SECONDS),
       '--session',
       '--dest',
       'com.franciscoknebel.WorkspaceLayout',
