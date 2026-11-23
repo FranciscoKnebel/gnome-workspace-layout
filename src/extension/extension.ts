@@ -1,6 +1,11 @@
 import Gio from 'gi://Gio';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { assertLayout, LAYOUT_SCHEMA_ID } from '../shared/layout.js';
+import {
+  listLayoutsResult,
+  readLayoutResult,
+  statusResult,
+} from '../shared/dbus-responses.js';
 import { applyLayout } from './apply-service.js';
 import { BUS_NAME, DBUS_XML, OBJECT_PATH } from './constants.js';
 import {
@@ -108,15 +113,15 @@ export default class WorkspaceLayoutExtension extends Extension {
     try {
       const status = runtimeStatus();
       return JSON.stringify(
-        Object.assign(result([], []), {
-          layouts: listLayouts({
+        listLayoutsResult(
+          listLayouts({
             workspaces: status.workspaces.map((workspace) => workspace.name),
             monitors: status.monitors.map((monitor) => monitor.index),
           }),
-        }),
+        ),
       );
     } catch (error) {
-      return JSON.stringify(result([String(error)], []));
+      return JSON.stringify(listLayoutsResult([], [String(error)]));
     }
   }
 
@@ -124,9 +129,9 @@ export default class WorkspaceLayoutExtension extends Extension {
     try {
       const layout = readLayout(name);
       assertLayout(layout);
-      return JSON.stringify(Object.assign(result([], []), { layout }));
+      return JSON.stringify(readLayoutResult(layout));
     } catch (error) {
-      return JSON.stringify(result([String(error)], []));
+      return JSON.stringify(readLayoutResult(undefined, [String(error)]));
     }
   }
 
@@ -145,11 +150,9 @@ export default class WorkspaceLayoutExtension extends Extension {
 
   GetStatus(): string {
     try {
-      return JSON.stringify(
-        Object.assign(result([], []), { status: runtimeStatus() }),
-      );
+      return JSON.stringify(statusResult(runtimeStatus()));
     } catch (error) {
-      return JSON.stringify(result([String(error)], []));
+      return JSON.stringify(statusResult(undefined, [String(error)]));
     }
   }
 }

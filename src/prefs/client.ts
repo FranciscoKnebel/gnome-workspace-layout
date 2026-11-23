@@ -1,9 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import type { LayoutFile } from '../shared/layout.js';
-import type { LayoutSummary } from '../shared/layout-summary.js';
+import type { ExtensionResponse } from '../shared/dbus-responses.js';
 import type { OperationResult } from '../shared/result.js';
-import type { RuntimeStatus } from '../shared/status.js';
 
 const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
 const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
@@ -12,27 +10,15 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 
 export const APPLY_TIMEOUT_MS = 600_000;
 
-export type ListLayoutsResponse = OperationResult & {
-  layouts?: LayoutSummary[];
-};
-
-export type ReadLayoutResponse = OperationResult & {
-  layout?: LayoutFile;
-};
-
-export type StatusResponse = OperationResult & {
-  status?: RuntimeStatus;
-};
-
 export class ExtensionClient {
   private proxy: any = null;
 
-  call<T extends OperationResult>(
+  call(
     method: string,
     signature: string,
     values: unknown[],
     timeoutMs = DEFAULT_TIMEOUT_MS,
-  ): T {
+  ): ExtensionResponse {
     try {
       const reply = this.getProxy().call_sync(
         method,
@@ -41,25 +27,25 @@ export class ExtensionClient {
         timeoutMs,
         null,
       );
-      return parseReply<T>(reply);
+      return parseReply(reply);
     } catch (error) {
-      return errorResponse<T>(error);
+      return errorResponse(error);
     }
   }
 
-  callAsync<T extends OperationResult>(
+  callAsync(
     method: string,
     signature: string,
     values: unknown[],
     timeoutMs: number,
-    callback: (response: T) => void,
+    callback: (response: ExtensionResponse) => void,
   ): void {
     let parameters: any;
 
     try {
       parameters = makeParameters(signature, values);
     } catch (error) {
-      callback(errorResponse<T>(error));
+      callback(errorResponse(error));
       return;
     }
 
@@ -71,19 +57,19 @@ export class ExtensionClient {
         timeoutMs,
         null,
         (proxy: any, result: any) => {
-          let response: T;
+          let response: ExtensionResponse;
 
           try {
-            response = parseReply<T>(proxy.call_finish(result));
+            response = parseReply(proxy.call_finish(result));
           } catch (error) {
-            response = errorResponse<T>(error);
+            response = errorResponse(error);
           }
 
           callback(response);
         },
       );
     } catch (error) {
-      callback(errorResponse<T>(error));
+      callback(errorResponse(error));
     }
   }
 
@@ -112,7 +98,7 @@ function makeParameters(signature: string, values: unknown[]): any {
   return new GLib.Variant(`(${signature})`, values);
 }
 
-function parseReply<T extends OperationResult>(reply: any): T {
+function parseReply(reply: any): ExtensionResponse {
   const [serialized] = reply.deep_unpack();
 
   if (typeof serialized !== 'string') {
@@ -125,15 +111,15 @@ function parseReply<T extends OperationResult>(reply: any): T {
     throw new Error('The extension returned an invalid operation result.');
   }
 
-  return parsed as T;
+  return parsed;
 }
 
-function errorResponse<T extends OperationResult>(error: unknown): T {
+function errorResponse(error: unknown): ExtensionResponse {
   return {
     ok: false,
     errors: [describeError(error)],
     messages: [],
-  } as unknown as T;
+  };
 }
 
 function describeError(error: unknown): string {

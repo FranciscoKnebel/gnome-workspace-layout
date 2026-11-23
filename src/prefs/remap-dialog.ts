@@ -2,9 +2,8 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import { remapLayoutWorkspaces } from '../shared/layout-summary.js';
 import type { LayoutSummary } from '../shared/layout-summary.js';
-import type { OperationResult } from '../shared/result.js';
 import type { RuntimeStatus } from '../shared/status.js';
-import type { ExtensionClient, ReadLayoutResponse } from './client.js';
+import type { ExtensionClient } from './client.js';
 import { showResult, singleLine } from './ui.js';
 
 type RemapDialogOptions = {
@@ -126,11 +125,9 @@ export class RemapDialog {
     }
 
     this.setBusy(true);
-    const read = this.options.client.call<ReadLayoutResponse>(
-      'ReadLayout',
-      's',
-      [this.options.summary.name],
-    );
+    const read = this.options.client.call('ReadLayout', 's', [
+      this.options.summary.name,
+    ]);
 
     if (!read.ok || read.layout === undefined) {
       this.setBusy(false);
@@ -142,7 +139,7 @@ export class RemapDialog {
       ...remapLayoutWorkspaces(read.layout, mapping),
       name: this.options.summary.name,
     };
-    const saved = this.options.client.call<OperationResult>('SaveSetup', 'sb', [
+    const saved = this.options.client.call('SaveSetup', 'sb', [
       JSON.stringify(remapped),
       true,
     ]);

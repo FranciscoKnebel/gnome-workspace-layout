@@ -1,5 +1,4 @@
 import Adw from 'gi://Adw';
-import cairo from 'cairo';
 import Gtk from 'gi://Gtk';
 import { absoluteToRelative } from '../shared/geometry.js';
 import {
@@ -16,9 +15,15 @@ import {
   type EditorRect,
 } from '../shared/layout-editor.js';
 import { POSITION_PRESETS, type LayoutFile } from '../shared/layout.js';
-import type { OperationResult } from '../shared/result.js';
 import type { MonitorStatus, RuntimeStatus } from '../shared/status.js';
 import type { ExtensionClient } from './client.js';
+import {
+  canvasHandleRadius,
+  canvasToMonitorPoint,
+  drawEditorCanvas,
+  type CanvasEntry,
+  type CanvasMetrics,
+} from './editor-canvas.js';
 import { showResult, singleLine } from './ui.js';
 
 type EditorWindowOptions = {
@@ -36,15 +41,6 @@ type DragState = {
   handle?: EditorHandle;
   rect: EditorRect;
 };
-
-type CanvasMetrics = {
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-};
-
-const CANVAS_PADDING = 16;
-const HANDLE_RADIUS_PX = 8;
 
 export class EditorWindow {
   private readonly options: EditorWindowOptions;
@@ -67,7 +63,7 @@ export class EditorWindow {
   private layout: LayoutFile;
   private monitorIndex: number;
   private selectedIndex: number | null = null;
-  private visible: Array<{ index: number; rect: EditorRect }> = [];
+  private visible: CanvasEntry[] = [];
   private windowRows: any[] = [];
   private drag: DragState | null = null;
   private metrics: CanvasMetrics = { scale: 1, offsetX: 0, offsetY: 0 };
@@ -298,106 +294,13 @@ export class EditorWindow {
     return { x: 0, y: 0, ...this.monitorSize() };
   }
 
-  private computeMetrics(width: number, height: number): CanvasMetrics {
-    const size = this.monitorSize();
-    const availableWidth = Math.max(1, width - CANVAS_PADDING * 2);
-    const availableHeight = Math.max(1, height - CANVAS_PADDING * 2);
-    const scale = Math.min(
-      availableWidth / Math.max(1, size.width),
-      availableHeight / Math.max(1, size.height),
-    );
-
-    return {
-      scale,
-      offsetX: (width - size.width * scale) / 2,
-      offsetY: (height - size.height * scale) / 2,
-    };
-  }
-
   private draw(cr: any, width: number, height: number): void {
-    this.metrics = this.computeMetrics(width, height);
-    const size = this.monitorSize();
-    const { scale, offsetX, offsetY } = this.metrics;
-    const monitorWidth = size.width * scale;
-    const monitorHeight = size.height * scale;
-
-    cr.setSourceRGBA(0, 0, 0, 0);
-    cr.paint();
-    cr.setSourceRGBA(0.1, 0.1, 0.12, 1);
-    cr.rectangle(offsetX, offsetY, monitorWidth, monitorHeight);
-    cr.fill();
-    cr.setSourceRGBA(0.55, 0.55, 0.6, 1);
-    cr.setLineWidth(1);
-    cr.rectangle(offsetX, offsetY, monitorWidth, monitorHeight);
-    cr.stroke();
-
-    for (const entry of this.visible) {
-      const selected = entry.index === this.selectedIndex;
-      const x = offsetX + entry.rect.x * scale;
-      const y = offsetY + entry.rect.y * scale;
-      const rectWidth = entry.rect.width * scale;
-      const rectHeight = entry.rect.height * scale;
-
-      if (selected) {
-        cr.setSourceRGBA(0.95, 0.65, 0.2, 0.32);
-      } else {
-        cr.setSourceRGBA(0.25, 0.55, 0.9, 0.22);
-      }
-      cr.rectangle(x, y, rectWidth, rectHeight);
-      cr.fill();
-
-      if (selected) {
-        cr.setSourceRGBA(1, 0.75, 0.3, 1);
-        cr.setLineWidth(2);
-      } else {
-        cr.setSourceRGBA(0.35, 0.65, 1, 0.9);
-        cr.setLineWidth(1);
-      }
-      cr.rectangle(x, y, rectWidth, rectHeight);
-      cr.stroke();
-
-      const target = editorTargets(this.layout)[entry.index];
-      if (target !== undefined) {
-        cr.selectFontFace(
-          'Sans',
-          cairo.FontSlant.NORMAL,
-          cairo.FontWeight.NORMAL,
-        );
-        cr.setFontSize(11);
-        cr.setSourceRGBA(1, 1, 1, 0.95);
-        cr.moveTo(x + 6, y + 16);
-        cr.showText(singleLine(target.label).slice(0, 48));
-      }
-    }
-
-    const selectedRect = this.selectedRect();
-    if (selectedRect !== null) {
-      const x = offsetX + selectedRect.x * scale;
-      const y = offsetY + selectedRect.y * scale;
-      const rectWidth = selectedRect.width * scale;
-      const rectHeight = selectedRect.height * scale;
-      const points = [
-        [x, y],
-        [x + rectWidth / 2, y],
-        [x + rectWidth, y],
-        [x + rectWidth, y + rectHeight / 2],
-        [x + rectWidth, y + rectHeight],
-        [x + rectWidth / 2, y + rectHeight],
-        [x, y + rectHeight],
-        [x, y + rectHeight / 2],
-      ];
-
-      cr.setSourceRGBA(1, 1, 1, 1);
-      cr.setLineWidth(1);
-      for (const [handleX, handleY] of points) {
-        cr.rectangle(handleX - 4, handleY - 4, 8, 8);
-        cr.fill();
-        cr.setSourceRGBA(0.1, 0.1, 0.12, 1);
-        cr.rectangle(handleX - 4, handleY - 4, 8, 8);
-        cr.stroke();
-        cr.setSourceRGBA(1, 1, 1, 1);
-      }
-    }
+    this.metrics = drawEditorCanvas(cr, width, height, {
+      monitor: this.monitorSize(),
+      entries: this.visible,
+      selectedIndex: this.selectedIndex,
+      selectedRect: this.selectedRect(),
+    });
   }
 
   private selectedRect(): EditorRect | null {
@@ -415,17 +318,13 @@ export class EditorWindow {
     widgetX: number,
     widgetY: number,
   ): { x: number; y: number } {
-    const { scale, offsetX, offsetY } = this.metrics;
-    return {
-      x: (widgetX - offsetX) / scale,
-      y: (widgetY - offsetY) / scale,
-    };
+    return canvasToMonitorPoint(this.metrics, widgetX, widgetY);
   }
 
   private onDragBegin(startX: number, startY: number): void {
     const point = this.toMonitorPoint(startX, startY);
     const selected = this.selectedRect();
-    const handleRadius = HANDLE_RADIUS_PX / this.metrics.scale;
+    const handleRadius = canvasHandleRadius(this.metrics);
     const handle =
       selected === null ? null : hitEditorHandle(selected, point, handleRadius);
 
@@ -609,6 +508,7 @@ export class EditorWindow {
       .map((target) => ({
         index: target.index,
         rect: editorRect(target.position, size),
+        label: target.label,
       }));
     this.drawing.queue_draw();
   }
@@ -718,11 +618,10 @@ export class EditorWindow {
   }
 
   private save(): void {
-    const response = this.options.client.call<OperationResult>(
-      'SaveSetup',
-      'sb',
-      [JSON.stringify({ ...this.layout, name: this.options.name }), true],
-    );
+    const response = this.options.client.call('SaveSetup', 'sb', [
+      JSON.stringify({ ...this.layout, name: this.options.name }),
+      true,
+    ]);
 
     if (!response.ok) {
       showResult(this.window, 'Could not save layout', response);

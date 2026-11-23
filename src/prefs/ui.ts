@@ -65,6 +65,29 @@ export function singleLine(value: string): string {
   );
 }
 
+export class RowGroup {
+  private readonly rows: any[] = [];
+
+  constructor(private readonly group: any) {}
+
+  add(row: any): void {
+    this.rows.push(row);
+    this.group.add(row);
+  }
+
+  clear(): void {
+    for (const row of this.rows) {
+      this.group.remove(row);
+    }
+
+    this.rows.length = 0;
+  }
+}
+
+export function plural(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`;
+}
+
 export function formatWindowTitle(windowEntry: LayoutWindow): string {
   return singleLine(
     windowEntry.label ??

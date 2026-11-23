@@ -1,5 +1,5 @@
 import { detectPosition } from '../shared/geometry.js';
-import type { CapturePreview } from '../shared/capture.js';
+import type { CapturePreview } from '../shared/dbus-responses.js';
 import type {
   LayoutFile,
   LayoutWindow,
@@ -35,7 +35,7 @@ export function captureLayout(
 
   try {
     const path = writeLayout(name, preview.layout);
-    return result(preview.errors, [`Wrote ${path}`]);
+    return result(preview.errors, [...preview.messages, `Wrote ${path}`]);
   } catch (error) {
     return result([...preview.errors, String(error)], []);
   }

@@ -1,7 +1,7 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import type { LayoutSummary } from '../shared/layout-summary.js';
-import { formatTimestamp, singleLine } from './ui.js';
+import { formatTimestamp, plural, RowGroup, singleLine } from './ui.js';
 
 type LayoutsPageOptions = {
   onApply: (name: string) => void;
@@ -24,7 +24,7 @@ export class LayoutsPage {
   private readonly options: LayoutsPageOptions;
   private readonly listGroup: any;
   private readonly actionsGroup: any;
-  private readonly rows = new Map<any, any[]>();
+  private readonly listRows: RowGroup;
   private applyButtons: ApplyButton[] = [];
   private actionButtons: any[] = [];
   private applyingName: string | null = null;
@@ -44,6 +44,7 @@ export class LayoutsPage {
         'Layouts are JSON files stored in your user configuration directory.',
     });
     this.actionsGroup = new Adw.PreferencesGroup();
+    this.listRows = new RowGroup(this.listGroup);
     this.page.add(this.listGroup);
     this.page.add(this.actionsGroup);
 
@@ -82,13 +83,12 @@ export class LayoutsPage {
     error: string | null,
   ): void {
     this.connected = connected;
-    this.clear(this.listGroup);
+    this.listRows.clear();
     this.applyButtons = [];
     this.actionButtons = [];
 
     if (!connected) {
-      this.addRow(
-        this.listGroup,
+      this.listRows.add(
         new Adw.ActionRow({
           title: 'Extension unavailable',
           subtitle:
@@ -100,8 +100,7 @@ export class LayoutsPage {
     }
 
     if (layouts.length === 0) {
-      this.addRow(
-        this.listGroup,
+      this.listRows.add(
         new Adw.ActionRow({
           title: 'No layouts yet',
           subtitle:
@@ -112,7 +111,7 @@ export class LayoutsPage {
     }
 
     for (const layout of layouts) {
-      this.addRow(this.listGroup, this.buildLayoutRow(layout));
+      this.listRows.add(this.buildLayoutRow(layout));
     }
 
     this.updateApplyButtons();
@@ -273,21 +272,6 @@ export class LayoutsPage {
       );
     }
   }
-
-  private addRow(group: any, row: any): void {
-    const rows = this.rows.get(group) ?? [];
-    rows.push(row);
-    this.rows.set(group, rows);
-    group.add(row);
-  }
-
-  private clear(group: any): void {
-    for (const row of this.rows.get(group) ?? []) {
-      group.remove(row);
-    }
-
-    this.rows.set(group, []);
-  }
 }
 
 function summarySubtitle(summary: LayoutSummary): string {
@@ -319,8 +303,4 @@ function windowSummary(summary: LayoutSummary): string {
   }
 
   return parts.join(', ');
-}
-
-function plural(count: number, singular: string): string {
-  return `${count} ${singular}${count === 1 ? '' : 's'}`;
 }

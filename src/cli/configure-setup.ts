@@ -1,9 +1,7 @@
 import { createInterface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
-import {
-  selectCapturedWindows,
-  type CapturePreview,
-} from '../shared/capture.js';
+import { selectCapturedWindows } from '../shared/capture.js';
+import type { CapturePreview } from '../shared/dbus-responses.js';
 import {
   layoutWindowsInApplyOrder,
   type LayoutFile,

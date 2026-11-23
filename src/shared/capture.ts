@@ -1,7 +1,4 @@
 import { layoutWindowsInApplyOrder, type LayoutFile } from './layout.js';
-import type { OperationResult } from './result.js';
-
-export type CapturePreview = OperationResult & { layout?: LayoutFile };
 
 /** Indices follow layoutWindowsInApplyOrder and are zero-based. */
 export function selectCapturedWindows(

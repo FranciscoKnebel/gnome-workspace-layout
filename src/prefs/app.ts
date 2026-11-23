@@ -2,16 +2,9 @@ import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import type { LayoutSummary } from '../shared/layout-summary.js';
-import type { OperationResult } from '../shared/result.js';
 import type { RuntimeStatus } from '../shared/status.js';
 import { CapturePage } from './capture-page.js';
-import {
-  APPLY_TIMEOUT_MS,
-  ExtensionClient,
-  type ListLayoutsResponse,
-  type ReadLayoutResponse,
-  type StatusResponse,
-} from './client.js';
+import { APPLY_TIMEOUT_MS, ExtensionClient } from './client.js';
 import { EditorWindow } from './editor-window.js';
 import { LayoutsPage } from './layouts-page.js';
 import { RemapDialog } from './remap-dialog.js';
@@ -59,16 +52,8 @@ export class WorkspaceLayoutApp {
   }
 
   refresh(): void {
-    const statusResponse = this.client.call<StatusResponse>(
-      'GetStatus',
-      '',
-      [],
-    );
-    const layoutsResponse = this.client.call<ListLayoutsResponse>(
-      'ListLayouts',
-      '',
-      [],
-    );
+    const statusResponse = this.client.call('GetStatus', '', []);
+    const layoutsResponse = this.client.call('ListLayouts', '', []);
 
     this.status = statusResponse.status ?? null;
     this.layouts = layoutsResponse.layouts ?? [];
@@ -192,7 +177,7 @@ export class WorkspaceLayoutApp {
     }
 
     this.setBusy(true, name);
-    this.client.callAsync<OperationResult>(
+    this.client.callAsync(
       'Apply',
       's',
       [name],
@@ -264,9 +249,7 @@ export class WorkspaceLayoutApp {
       return;
     }
 
-    const response = this.client.call<ReadLayoutResponse>('ReadLayout', 's', [
-      summary.name,
-    ]);
+    const response = this.client.call('ReadLayout', 's', [summary.name]);
 
     if (!response.ok || response.layout === undefined) {
       showError(
@@ -300,11 +283,7 @@ export class WorkspaceLayoutApp {
       `This removes ${summary.name}.json from disk. This action cannot be undone.`,
       'Delete',
       () => {
-        const response = this.client.call<OperationResult>(
-          'DeleteLayout',
-          's',
-          [summary.name],
-        );
+        const response = this.client.call('DeleteLayout', 's', [summary.name]);
 
         if (response.ok) {
           this.refresh();
