@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { describeDbusFailure } from '../src/shared/dbus.js';
-import { parseGdbusSingleString } from '../src/cli/gdbus.js';
+import {
+  describeCliDbusFailure,
+  parseGdbusSingleString,
+} from '../src/cli/gdbus.js';
 
 describe('parseGdbusSingleString', () => {
   it('extracts a JSON string from gdbus tuple output', () => {
@@ -75,10 +77,10 @@ describe('parseGdbusSingleString', () => {
   });
 });
 
-describe('describeDbusFailure', () => {
+describe('describeCliDbusFailure', () => {
   it('explains when the running extension does not support --force', () => {
     expect(
-      describeDbusFailure(
+      describeCliDbusFailure(
         'SetupForce',
         'GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod: No such method',
       ),
@@ -91,7 +93,7 @@ describe('describeDbusFailure', () => {
     'explains when %s is missing from an older extension',
     (method) => {
       expect(
-        describeDbusFailure(
+        describeCliDbusFailure(
           method,
           'GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod: No such method',
         ),

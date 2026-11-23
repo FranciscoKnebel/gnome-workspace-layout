@@ -168,10 +168,6 @@ export function assertLayout(layout: unknown): asserts layout is LayoutFile {
   }
 }
 
-export function isValidLayout(layout: unknown): layout is LayoutFile {
-  return validateLayout(layout).errors.length === 0;
-}
-
 export function layoutWindowsInApplyOrder(
   layout: LayoutFile,
 ): LayoutWindowTarget[] {

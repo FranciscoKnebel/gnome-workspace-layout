@@ -9,19 +9,13 @@ import {
 import {
   capturePreviewResult,
   isCapturePreview,
-  isListLayoutsResponse,
   isOverviewResponse,
   isReadLayoutResponse,
-  isStatusResponse,
-  listLayoutsResult,
   overviewResult,
   readLayoutResult,
-  statusResult,
   type CapturePreview,
-  type ListLayoutsResponse,
   type OverviewResponse,
   type ReadLayoutResponse,
-  type StatusResponse,
 } from '../shared/dbus-responses.js';
 import {
   isOperationResult,
@@ -36,17 +30,6 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 export class ExtensionClient {
   private proxy: any = null;
 
-  listLayouts(): ListLayoutsResponse {
-    return this.requestTyped(
-      'ListLayouts',
-      '',
-      [],
-      isListLayoutsResponse,
-      (errors) => listLayoutsResult([], errors),
-      'The extension returned an invalid layout list.',
-    );
-  }
-
   readLayout(name: string): ReadLayoutResponse {
     return this.requestTyped(
       'ReadLayout',
@@ -55,17 +38,6 @@ export class ExtensionClient {
       isReadLayoutResponse,
       (errors) => readLayoutResult(null, errors),
       'The extension returned an invalid layout.',
-    );
-  }
-
-  getStatus(): StatusResponse {
-    return this.requestTyped(
-      'GetStatus',
-      '',
-      [],
-      isStatusResponse,
-      (errors) => statusResult(null, errors),
-      'The extension returned an invalid status.',
     );
   }
 
@@ -132,12 +104,11 @@ export class ExtensionClient {
           isOperationResult(value)
             ? value
             : operationFailure(
-                'Apply',
                 new Error('The extension returned an invalid result.'),
               ),
         );
       },
-      (error) => callback(operationFailure('Apply', error)),
+      (error) => callback(operationFailure(error)),
     );
   }
 
@@ -157,7 +128,7 @@ export class ExtensionClient {
 
       throw new Error(invalidMessage);
     } catch (error) {
-      return fallback([describe(method, error)]);
+      return fallback([describe(error)]);
     }
   }
 
@@ -254,13 +225,12 @@ function parseRawReply(reply: any): unknown {
   return parsed;
 }
 
-function operationFailure(method: string, error: unknown): OperationResult {
-  return result([describe(method, error)], []);
+function operationFailure(error: unknown): OperationResult {
+  return result([describe(error)], []);
 }
 
-function describe(method: string, error: unknown): string {
+function describe(error: unknown): string {
   return describeDbusFailure(
-    method,
     error instanceof Error ? error.message : String(error),
   );
 }

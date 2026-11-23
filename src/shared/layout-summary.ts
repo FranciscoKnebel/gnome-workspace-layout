@@ -1,9 +1,5 @@
 import { isRecord } from './objects.js';
-import {
-  isValidLayout,
-  layoutWindowsInApplyOrder,
-  validateLayout,
-} from './layout.js';
+import { validateLayout } from './layout.js';
 
 export type LayoutEnvironment = {
   workspaces: string[];
@@ -36,23 +32,9 @@ export function summarizeLayout(
   environment: LayoutEnvironment,
   metadata: LayoutSummaryMetadata = {},
 ): LayoutSummary {
-  let workspaces: string[];
-  let windows: Array<{ monitor?: unknown }>;
-  let stickyCount: number;
-  let errors: string[];
-
-  if (isValidLayout(layout)) {
-    workspaces = Object.keys(layout.workspaces);
-    windows = layoutWindowsInApplyOrder(layout).map((target) => target.window);
-    stickyCount = layout.sticky?.length ?? 0;
-    errors = [];
-  } else {
-    errors = validateLayout(layout).errors;
-    workspaces = readWorkspaceNames(layout);
-    windows = readWindows(layout);
-    stickyCount = readStickyEntries(layout).length;
-  }
-
+  const validation = validateLayout(layout);
+  const workspaces = readWorkspaceNames(layout);
+  const windows = readWindows(layout);
   const monitors = [
     ...new Set(
       windows.map((window) => window.monitor).filter(isNonNegativeInteger),
@@ -67,11 +49,11 @@ export function summarizeLayout(
     ...(metadata.path === undefined ? {} : { path: metadata.path }),
     windowCount: windows.length,
     workspaceCount: workspaces.length,
-    stickyCount,
+    stickyCount: readStickyEntries(layout).length,
     workspaces,
     monitors,
-    valid: errors.length === 0,
-    errors,
+    valid: validation.errors.length === 0,
+    errors: validation.errors,
     missingWorkspaces: workspaces.filter(
       (workspace) => !environment.workspaces.includes(workspace),
     ),

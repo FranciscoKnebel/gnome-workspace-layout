@@ -108,17 +108,6 @@ export function isCapturePreview(value: unknown): value is CapturePreview {
   );
 }
 
-export function isListLayoutsResponse(
-  value: unknown,
-): value is ListLayoutsResponse {
-  return (
-    isOperationResult(value) &&
-    value.kind === 'ListLayouts' &&
-    Array.isArray(value.layouts) &&
-    value.layouts.every((layout) => validateLayoutSummary(layout).length === 0)
-  );
-}
-
 export function isReadLayoutResponse(
   value: unknown,
 ): value is ReadLayoutResponse {
@@ -129,16 +118,6 @@ export function isReadLayoutResponse(
     (value.layout === null ||
       (isRecord(value.layout) &&
         validateLayout(value.layout).errors.length === 0))
-  );
-}
-
-export function isStatusResponse(value: unknown): value is StatusResponse {
-  return (
-    isOperationResult(value) &&
-    value.kind === 'GetStatus' &&
-    'status' in value &&
-    (value.status === null ||
-      (isRecord(value.status) && validateStatus(value.status).length === 0))
   );
 }
 

@@ -2,18 +2,7 @@ export const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
 export const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
 export const INTERFACE_NAME = 'com.franciscoknebel.WorkspaceLayout';
 
-export function describeDbusFailure(method: string, message: string): string {
-  if (
-    (method === 'PreviewSetup' || method === 'SaveSetup') &&
-    message.includes('UnknownMethod')
-  ) {
-    return 'The running extension does not support --configure. Reinstall the extension and log out/in, then try again.';
-  }
-
-  if (method === 'SetupForce' && message.includes('UnknownMethod')) {
-    return 'The running extension does not support --force. Restart GNOME Shell or log out/in, then try again.';
-  }
-
+export function describeDbusFailure(message: string): string {
   if (message.includes('UnknownMethod') || message.includes('Unknown method')) {
     return 'The installed extension is older than this client. Reinstall it and restart GNOME Shell.';
   }
