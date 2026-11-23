@@ -12,19 +12,9 @@ export type CapturePreview = OperationResult & {
   layout?: LayoutFile;
 };
 
-export type ListLayoutsResponse = OperationResult & {
-  kind: 'ListLayouts';
-  layouts: LayoutSummary[];
-};
-
 export type ReadLayoutResponse = OperationResult & {
   kind: 'ReadLayout';
   layout: LayoutFile | null;
-};
-
-export type StatusResponse = OperationResult & {
-  kind: 'GetStatus';
-  status: RuntimeStatus | null;
 };
 
 export type Overview = {
@@ -49,18 +39,6 @@ export function capturePreviewResult(
   };
 }
 
-export function listLayoutsResult(
-  layouts: LayoutSummary[] = [],
-  errors: string[] = [],
-  messages: string[] = [],
-): ListLayoutsResponse {
-  return {
-    ...result(errors, messages),
-    kind: 'ListLayouts',
-    layouts,
-  };
-}
-
 export function readLayoutResult(
   layout: LayoutFile | null,
   errors: string[] = [],
@@ -70,18 +48,6 @@ export function readLayoutResult(
     ...result(errors, messages),
     kind: 'ReadLayout',
     layout,
-  };
-}
-
-export function statusResult(
-  status: RuntimeStatus | null,
-  errors: string[] = [],
-  messages: string[] = [],
-): StatusResponse {
-  return {
-    ...result(errors, messages),
-    kind: 'GetStatus',
-    status,
   };
 }
 

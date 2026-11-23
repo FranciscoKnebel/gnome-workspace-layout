@@ -1,4 +1,7 @@
-import { isRecord } from './objects.js';
+import {
+  isNonNegativeInteger as isNonNegativeIntegerValue,
+  isRecord,
+} from './objects.js';
 import { validateLayout } from './layout.js';
 
 export type LayoutEnvironment = {
@@ -125,16 +128,16 @@ export function validateLayoutSummary(value: unknown): string[] {
     errors.push('layout summary.name must be a string');
   }
 
-  if (typeof value.windowCount !== 'number') {
-    errors.push('layout summary.windowCount must be a number');
+  if (!isNonNegativeIntegerValue(value.windowCount)) {
+    errors.push('layout summary.windowCount must be a non-negative integer');
   }
 
-  if (typeof value.workspaceCount !== 'number') {
-    errors.push('layout summary.workspaceCount must be a number');
+  if (!isNonNegativeIntegerValue(value.workspaceCount)) {
+    errors.push('layout summary.workspaceCount must be a non-negative integer');
   }
 
-  if (typeof value.stickyCount !== 'number') {
-    errors.push('layout summary.stickyCount must be a number');
+  if (!isNonNegativeIntegerValue(value.stickyCount)) {
+    errors.push('layout summary.stickyCount must be a non-negative integer');
   }
 
   if (
@@ -146,9 +149,9 @@ export function validateLayoutSummary(value: unknown): string[] {
 
   if (
     !Array.isArray(value.monitors) ||
-    !value.monitors.every((monitor) => typeof monitor === 'number')
+    !value.monitors.every(isNonNegativeIntegerValue)
   ) {
-    errors.push('layout summary.monitors must contain numbers');
+    errors.push('layout summary.monitors must contain non-negative integers');
   }
 
   if (typeof value.valid !== 'boolean') {
@@ -171,9 +174,15 @@ export function validateLayoutSummary(value: unknown): string[] {
 
   if (
     !Array.isArray(value.missingMonitors) ||
-    !value.missingMonitors.every((monitor) => typeof monitor === 'number')
+    !value.missingMonitors.every(isNonNegativeIntegerValue)
   ) {
-    errors.push('layout summary.missingMonitors must contain numbers');
+    errors.push(
+      'layout summary.missingMonitors must contain non-negative integers',
+    );
+  }
+
+  if (value.path !== undefined && typeof value.path !== 'string') {
+    errors.push('layout summary.path must be a string when present');
   }
 
   if (

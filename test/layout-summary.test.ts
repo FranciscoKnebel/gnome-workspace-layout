@@ -5,7 +5,10 @@ import {
   summarizeLayout,
   validateLayoutSummary,
 } from '../src/shared/layout-summary.js';
-import { isOverviewResponse } from '../src/shared/dbus-responses.js';
+import {
+  isOverviewResponse,
+  overviewResult,
+} from '../src/shared/dbus-responses.js';
 
 const environment = {
   workspaces: ['Dev', 'Chat'],
@@ -239,5 +242,34 @@ describe('isOverviewResponse', () => {
         },
       }),
     ).toBe(false);
+  });
+});
+
+describe('isOverviewResponse round trip', () => {
+  it('accepts a generated overview', () => {
+    const summary = summarizeLayout(
+      {
+        name: 'trabalho',
+        workspaces: {
+          Dev: {
+            windows: [{ command: 'editor', monitor: 0, position: 'left' }],
+          },
+        },
+      },
+      environment,
+      { name: 'trabalho', modifiedAt: 1700000000 },
+    );
+    const response = overviewResult(
+      {
+        monitors: [{ index: 0, x: 0, y: 0, width: 1920, height: 1080 }],
+        workspaces: [{ index: 0, name: 'Dev', active: true }],
+        activeWorkspaceIndex: 0,
+        layoutsDir: '/layouts',
+        schemaPath: '/schema.json',
+      },
+      [summary],
+    );
+
+    expect(isOverviewResponse(response)).toBe(true);
   });
 });

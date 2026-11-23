@@ -1,12 +1,7 @@
 import Gio from 'gi://Gio';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { assertLayout, LAYOUT_SCHEMA_ID } from '../shared/layout.js';
-import {
-  listLayoutsResult,
-  overviewResult,
-  readLayoutResult,
-  statusResult,
-} from '../shared/dbus-responses.js';
+import { overviewResult, readLayoutResult } from '../shared/dbus-responses.js';
 import { applyLayout } from './apply-service.js';
 import { BUS_NAME, DBUS_XML, OBJECT_PATH } from './constants.js';
 import {
@@ -102,13 +97,6 @@ export default class WorkspaceLayoutExtension extends Extension {
     }));
   }
 
-  ListLayouts(): string {
-    return this.runRead(
-      () => listLayoutsResult(this.statusWithLayouts().summaries),
-      (error) => listLayoutsResult([], [String(error)]),
-    );
-  }
-
   ReadLayout(name: string): string {
     return this.runRead(
       () => {
@@ -127,24 +115,17 @@ export default class WorkspaceLayoutExtension extends Extension {
     });
   }
 
-  GetStatus(): string {
-    return this.runRead(
-      () => statusResult(runtimeStatus()),
-      (error) => statusResult(null, [String(error)]),
-    );
-  }
-
   GetOverview(): string {
     return this.runRead(
       () => {
-        const { status, summaries } = this.statusWithLayouts();
+        const { status, summaries } = this.overview();
         return overviewResult(status, summaries);
       },
       (error) => overviewResult(null, [], [String(error)]),
     );
   }
 
-  private statusWithLayouts() {
+  private overview() {
     const status = runtimeStatus();
     return {
       status,

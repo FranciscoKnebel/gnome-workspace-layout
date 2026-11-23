@@ -31,14 +31,9 @@ describe('D-Bus capture methods', () => {
 });
 
 describe('D-Bus preferences methods', () => {
-  it('lists and reads layouts for the preferences window', () => {
-    expect(inputTypes('ListLayouts')).toEqual([]);
+  it('reads and deletes layouts for the preferences window', () => {
     expect(inputTypes('ReadLayout')).toEqual(['s']);
-  });
-
-  it('deletes a layout by name and reports runtime status', () => {
     expect(inputTypes('DeleteLayout')).toEqual(['s']);
-    expect(inputTypes('GetStatus')).toEqual([]);
   });
 
   it('reports status and layouts together for the preferences refresh', () => {

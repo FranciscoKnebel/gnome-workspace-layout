@@ -1,4 +1,8 @@
-import { isRecord } from './objects.js';
+import {
+  isNonNegativeFiniteNumber,
+  isNonNegativeInteger,
+  isRecord,
+} from './objects.js';
 
 export type WorkspaceStatus = {
   index: number;
@@ -40,11 +44,7 @@ export function validateStatus(value: unknown): string[] {
     errors.push('status.workspaces must contain valid workspace entries');
   }
 
-  if (
-    typeof value.activeWorkspaceIndex !== 'number' ||
-    !Number.isInteger(value.activeWorkspaceIndex) ||
-    value.activeWorkspaceIndex < 0
-  ) {
+  if (!isNonNegativeInteger(value.activeWorkspaceIndex)) {
     errors.push('status.activeWorkspaceIndex must be a non-negative integer');
   }
 
@@ -64,11 +64,8 @@ function isMonitor(value: unknown): boolean {
     return false;
   }
 
-  return ['index', 'x', 'y', 'width', 'height'].every(
-    (key) =>
-      typeof value[key] === 'number' &&
-      Number.isFinite(value[key]) &&
-      value[key] >= 0,
+  return ['index', 'x', 'y', 'width', 'height'].every((key) =>
+    isNonNegativeFiniteNumber(value[key]),
   );
 }
 
@@ -78,9 +75,7 @@ function isWorkspace(value: unknown): boolean {
   }
 
   return (
-    typeof value.index === 'number' &&
-    Number.isInteger(value.index) &&
-    value.index >= 0 &&
+    isNonNegativeInteger(value.index) &&
     typeof value.name === 'string' &&
     typeof value.active === 'boolean'
   );
