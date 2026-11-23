@@ -118,22 +118,17 @@ export default class WorkspaceLayoutExtension extends Extension {
   GetOverview(): string {
     return this.runRead(
       () => {
-        const { status, summaries } = this.overview();
-        return overviewResult(status, summaries);
+        const status = runtimeStatus();
+        return overviewResult(
+          status,
+          listLayouts({
+            workspaces: status.workspaces.map((workspace) => workspace.name),
+            monitors: status.monitors.map((monitor) => monitor.index),
+          }),
+        );
       },
       (error) => overviewResult(null, [], [String(error)]),
     );
-  }
-
-  private overview() {
-    const status = runtimeStatus();
-    return {
-      status,
-      summaries: listLayouts({
-        workspaces: status.workspaces.map((workspace) => workspace.name),
-        monitors: status.monitors.map((monitor) => monitor.index),
-      }),
-    };
   }
 
   private runGated(

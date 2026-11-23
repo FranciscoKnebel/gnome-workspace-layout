@@ -1,7 +1,4 @@
-import {
-  isNonNegativeInteger as isNonNegativeIntegerValue,
-  isRecord,
-} from './objects.js';
+import { isNonNegativeInteger, isRecord } from './objects.js';
 import { validateLayout } from './layout.js';
 
 export type LayoutEnvironment = {
@@ -113,10 +110,6 @@ function readStickyEntries(layout: unknown): unknown[] {
   return layout.sticky;
 }
 
-function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
-}
-
 export function validateLayoutSummary(value: unknown): string[] {
   if (!isRecord(value)) {
     return ['layout summary must be an object'];
@@ -128,15 +121,15 @@ export function validateLayoutSummary(value: unknown): string[] {
     errors.push('layout summary.name must be a string');
   }
 
-  if (!isNonNegativeIntegerValue(value.windowCount)) {
+  if (!isNonNegativeInteger(value.windowCount)) {
     errors.push('layout summary.windowCount must be a non-negative integer');
   }
 
-  if (!isNonNegativeIntegerValue(value.workspaceCount)) {
+  if (!isNonNegativeInteger(value.workspaceCount)) {
     errors.push('layout summary.workspaceCount must be a non-negative integer');
   }
 
-  if (!isNonNegativeIntegerValue(value.stickyCount)) {
+  if (!isNonNegativeInteger(value.stickyCount)) {
     errors.push('layout summary.stickyCount must be a non-negative integer');
   }
 
@@ -149,7 +142,7 @@ export function validateLayoutSummary(value: unknown): string[] {
 
   if (
     !Array.isArray(value.monitors) ||
-    !value.monitors.every(isNonNegativeIntegerValue)
+    !value.monitors.every(isNonNegativeInteger)
   ) {
     errors.push('layout summary.monitors must contain non-negative integers');
   }
@@ -174,7 +167,7 @@ export function validateLayoutSummary(value: unknown): string[] {
 
   if (
     !Array.isArray(value.missingMonitors) ||
-    !value.missingMonitors.every(isNonNegativeIntegerValue)
+    !value.missingMonitors.every(isNonNegativeInteger)
   ) {
     errors.push(
       'layout summary.missingMonitors must contain non-negative integers',
