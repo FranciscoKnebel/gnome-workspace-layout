@@ -259,4 +259,25 @@ describe('layout schema parity', () => {
       ).toBe(validateLayoutName(name).length === 0);
     }
   });
+
+  it('keeps prototype-like workspace names valid after a JSON round trip', () => {
+    for (const name of ['constructor', '__proto__', 'toString']) {
+      const layout = JSON.parse(
+        JSON.stringify({
+          name: 'selected',
+          workspaces: {
+            [name]: {
+              windows: [
+                { command: 'gnome-terminal', monitor: 0, position: 'left' },
+              ],
+            },
+          },
+        }),
+      );
+
+      expect(Object.hasOwn(layout.workspaces, name)).toBe(true);
+      expect(validateSchema(layout)).toBe(true);
+      expect(validateLayout(layout).errors).toEqual([]);
+    }
+  });
 });

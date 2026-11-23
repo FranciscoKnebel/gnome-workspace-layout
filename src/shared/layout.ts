@@ -186,6 +186,26 @@ export function layoutWindowsInApplyOrder(
   return targets;
 }
 
+/**
+ * Accumulates windows by workspace name. Workspace names are arbitrary strings,
+ * so entries are kept in a Map until toRecord creates own properties with
+ * Object.fromEntries. That prevents keys such as "__proto__" from reaching a
+ * prototype setter.
+ */
+export class WorkspaceAccumulator {
+  private readonly workspaces = new Map<string, WorkspaceLayout>();
+
+  add(workspaceName: string, windows: readonly LayoutWindow[]): void {
+    const workspace = this.workspaces.get(workspaceName) ?? { windows: [] };
+    workspace.windows.push(...windows);
+    this.workspaces.set(workspaceName, workspace);
+  }
+
+  toRecord(): LayoutFile['workspaces'] {
+    return Object.fromEntries(this.workspaces);
+  }
+}
+
 function validateWindow(entry: unknown, path: string, errors: string[]): void {
   if (!isRecord(entry)) {
     errors.push(`${path} must be an object`);

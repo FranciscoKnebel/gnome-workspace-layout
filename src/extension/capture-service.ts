@@ -11,6 +11,7 @@ import {
   layoutWindowsInApplyOrder,
   validateLayout,
   validateLayoutName,
+  WorkspaceAccumulator,
 } from '../shared/layout.js';
 import type { OperationResult } from '../shared/result.js';
 import { result } from '../shared/result.js';
@@ -61,11 +62,8 @@ export function previewCapture(
       return capturePreviewResult(undefined, [existingLayoutError(name)], []);
     }
 
-    const layout: LayoutFile = {
-      $schema: schemaUri(),
-      name,
-      workspaces: {},
-    };
+    const workspaces = new WorkspaceAccumulator();
+    const sticky: LayoutWindow[] = [];
 
     for (const window of getWindows()) {
       if (window.skip_taskbar || (!includeMinimized && window.minimized)) {
@@ -78,15 +76,20 @@ export function previewCapture(
       }
 
       if (isStickyWindow(window)) {
-        layout.sticky ??= [];
-        layout.sticky.push(entry);
+        sticky.push(entry);
         continue;
       }
 
       const workspaceName = getWorkspaceName(window.get_workspace());
-      layout.workspaces[workspaceName] ??= { windows: [] };
-      layout.workspaces[workspaceName].windows.push(entry);
+      workspaces.add(workspaceName, [entry]);
     }
+
+    const layout: LayoutFile = {
+      $schema: schemaUri(),
+      name,
+      workspaces: workspaces.toRecord(),
+      ...(sticky.length > 0 ? { sticky } : {}),
+    };
 
     if (replacing && errors.length > 0) {
       return capturePreviewResult(undefined, errors, messages);

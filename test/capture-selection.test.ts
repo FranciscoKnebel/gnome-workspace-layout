@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { selectCapturedWindows } from '../src/shared/layout-transform.js';
 import type { LayoutFile } from '../src/shared/layout.js';
+import { validateLayout } from '../src/shared/layout.js';
 
 const layout: LayoutFile = {
   $schema: 'file:///schema/workspace-layout.schema.json',
@@ -55,4 +56,32 @@ describe('selectCapturedWindows', () => {
       sticky: layout.sticky,
     });
   });
+
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty'])(
+    'keeps a workspace named %s in the selection',
+    (name) => {
+      const source: LayoutFile = {
+        name: 'trabalho',
+        workspaces: {
+          [name]: {
+            windows: [
+              { appId: 'editor.desktop', monitor: 0, position: 'full' },
+            ],
+          },
+        },
+      };
+
+      const selected = selectCapturedWindows(source, [0]);
+
+      expect(Object.hasOwn(selected.workspaces, name)).toBe(true);
+      expect(Object.keys(selected.workspaces)).toEqual([name]);
+      expect(selected.workspaces[name].windows).toEqual(
+        source.workspaces[name].windows,
+      );
+      expect(Object.hasOwn(Object.prototype, 'windows')).toBe(false);
+      expect(
+        validateLayout(JSON.parse(JSON.stringify(selected))).errors,
+      ).toEqual([]);
+    },
+  );
 });

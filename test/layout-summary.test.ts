@@ -135,6 +135,9 @@ describe('summarizeLayout', () => {
 });
 
 describe('remapLayoutWorkspaces', () => {
+  const asMapping = (entries: Record<string, string>): Map<string, string> =>
+    new Map(Object.entries(entries));
+
   const layout: LayoutFile = {
     $schema: 'https://example.com/schema.json',
     name: 'trabalho',
@@ -153,10 +156,13 @@ describe('remapLayoutWorkspaces', () => {
   };
 
   it('renames missing workspaces and keeps other workspaces untouched', () => {
-    const remapped = remapLayoutWorkspaces(layout, {
-      'Workspace 2': 'Dawntech',
-      'Workspace 3': 'G&G',
-    });
+    const remapped = remapLayoutWorkspaces(
+      layout,
+      asMapping({
+        'Workspace 2': 'Dawntech',
+        'Workspace 3': 'G&G',
+      }),
+    );
 
     expect(remapped).toEqual({
       $schema: 'https://example.com/schema.json',
@@ -177,10 +183,13 @@ describe('remapLayoutWorkspaces', () => {
   });
 
   it('merges windows when two sources map to the same workspace', () => {
-    const remapped = remapLayoutWorkspaces(layout, {
-      'Workspace 2': 'Principal',
-      Dev: 'Principal',
-    });
+    const remapped = remapLayoutWorkspaces(
+      layout,
+      asMapping({
+        'Workspace 2': 'Principal',
+        Dev: 'Principal',
+      }),
+    );
 
     expect(remapped.workspaces.Principal.windows).toEqual([
       { command: 'editor', monitor: 0, position: 'left' },
@@ -191,9 +200,81 @@ describe('remapLayoutWorkspaces', () => {
   it('does not mutate the original layout', () => {
     const snapshot = structuredClone(layout);
 
-    remapLayoutWorkspaces(layout, { 'Workspace 2': 'Dawntech' });
+    remapLayoutWorkspaces(layout, asMapping({ 'Workspace 2': 'Dawntech' }));
 
     expect(layout).toEqual(snapshot);
+  });
+
+  it.each(['constructor', '__proto__', 'toString', 'hasOwnProperty'])(
+    'keeps an unmapped workspace named %s unchanged',
+    (name) => {
+      const source: LayoutFile = {
+        name: 'trabalho',
+        workspaces: {
+          [name]: {
+            windows: [{ command: 'editor', monitor: 0, position: 'left' }],
+          },
+        },
+      };
+
+      const remapped = remapLayoutWorkspaces(source, new Map());
+
+      expect(Object.hasOwn(remapped.workspaces, name)).toBe(true);
+      expect(Object.keys(remapped.workspaces)).toEqual([name]);
+      expect(remapped.workspaces[name].windows).toEqual(
+        source.workspaces[name].windows,
+      );
+      expect(Object.hasOwn(Object.prototype, 'windows')).toBe(false);
+    },
+  );
+
+  it.each(['constructor', '__proto__', 'toString'])(
+    'remaps a workspace to a target named %s',
+    (name) => {
+      const remapped = remapLayoutWorkspaces(layout, asMapping({ Dev: name }));
+
+      expect(Object.hasOwn(remapped.workspaces, name)).toBe(true);
+      expect(Object.keys(remapped.workspaces)).toEqual([
+        'Workspace 2',
+        'Workspace 3',
+        name,
+      ]);
+      expect(remapped.workspaces[name].windows).toEqual([
+        { command: 'terminal', monitor: 0, position: 'bottom' },
+      ]);
+      expect(Object.hasOwn(Object.prototype, 'windows')).toBe(false);
+    },
+  );
+
+  it('merges prototype-like source names into one target', () => {
+    const source = JSON.parse(
+      JSON.stringify({
+        name: 'trabalho',
+        workspaces: {
+          ['constructor']: {
+            windows: [{ command: 'editor', monitor: 0, position: 'left' }],
+          },
+          ['__proto__']: {
+            windows: [{ command: 'chat', monitor: 1, position: 'right' }],
+          },
+        },
+      }),
+    ) as LayoutFile;
+
+    const remapped = remapLayoutWorkspaces(
+      source,
+      asMapping({
+        ['constructor']: 'Principal',
+        ['__proto__']: 'Principal',
+      }),
+    );
+
+    expect(Object.keys(remapped.workspaces)).toEqual(['Principal']);
+    expect(remapped.workspaces.Principal.windows).toEqual([
+      { command: 'editor', monitor: 0, position: 'left' },
+      { command: 'chat', monitor: 1, position: 'right' },
+    ]);
+    expect(Object.hasOwn(Object.prototype, 'windows')).toBe(false);
   });
 });
 
