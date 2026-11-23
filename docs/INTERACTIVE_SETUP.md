@@ -60,10 +60,10 @@ The preferences window uses three additional methods:
 
 - `ReadLayout(name: s)` returns the parsed `layout` for remapping.
 - `DeleteLayout(name: s)` removes one layout file.
-- `GetOverview()` returns `overview` with `status` and `layouts` in one call. The
-  status includes monitors, workspaces, the active workspace index, the layouts
-  directory, and the schema path. Each summary includes counts, validity, missing
-  workspaces and monitors, file path, and modification time.
+- `GetOverview()` returns `status` and `layouts` in one call. The status includes
+  monitors, workspaces, the active workspace index, the layouts directory, and
+  the schema path. Each summary includes counts, validity, missing workspaces and
+  monitors, file path, and modification time.
 
 `ReadLayout` and `GetOverview` are read-only and remain available while another
 operation runs. `DeleteLayout` and `SaveSetup` use the operation gate. Layout

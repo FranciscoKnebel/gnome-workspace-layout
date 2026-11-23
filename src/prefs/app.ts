@@ -55,8 +55,8 @@ export class WorkspaceLayoutApp {
   refresh(): void {
     const overview = this.client.getOverview();
 
-    this.status = overview.overview.status;
-    this.layouts = overview.overview.layouts;
+    this.status = overview.status;
+    this.layouts = overview.layouts;
     this.connected = overview.ok;
     const error = overview.errors.join('\n') || null;
     this.layoutsPage.setLayouts(this.layouts, this.connected, error);

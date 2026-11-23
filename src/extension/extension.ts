@@ -12,7 +12,11 @@ import {
 import { deleteLayout, listLayouts, readLayout } from './layout-store.js';
 import { OperationGate } from './operation-gate.js';
 import { layoutsDir } from './paths.js';
-import { result, type OperationResult } from '../shared/result.js';
+import {
+  operationFailure,
+  result,
+  type OperationResult,
+} from '../shared/result.js';
 import { runtimeStatus } from './status-service.js';
 import {
   cancelWindowWaits,
@@ -133,8 +137,7 @@ export default class WorkspaceLayoutExtension extends Extension {
 
   private runGated(
     factory: () => OperationResult,
-    fallback: (error: unknown) => OperationResult = (error) =>
-      result([String(error)], []),
+    fallback: (error: unknown) => OperationResult = operationFailure,
   ): string {
     return JSON.stringify(
       this.operations.run(() => this.withFallback(factory, fallback)),
@@ -143,8 +146,7 @@ export default class WorkspaceLayoutExtension extends Extension {
 
   private runRead(
     factory: () => OperationResult,
-    fallback: (error: unknown) => OperationResult = (error) =>
-      result([String(error)], []),
+    fallback: (error: unknown) => OperationResult = operationFailure,
   ): string {
     return JSON.stringify(this.withFallback(factory, fallback));
   }

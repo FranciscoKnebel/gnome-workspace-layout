@@ -17,14 +17,10 @@ export type ReadLayoutResponse = OperationResult & {
   layout: LayoutFile | null;
 };
 
-export type Overview = {
-  status: RuntimeStatus | null;
-  layouts: LayoutSummary[];
-};
-
 export type OverviewResponse = OperationResult & {
   kind: 'GetOverview';
-  overview: Overview;
+  status: RuntimeStatus | null;
+  layouts: LayoutSummary[];
 };
 
 export function capturePreviewResult(
@@ -60,7 +56,8 @@ export function overviewResult(
   return {
     ...result(errors, messages),
     kind: 'GetOverview',
-    overview: { status, layouts },
+    status,
+    layouts,
   };
 }
 
@@ -88,23 +85,16 @@ export function isReadLayoutResponse(
 }
 
 export function isOverviewResponse(value: unknown): value is OverviewResponse {
-  if (
-    !isOperationResult(value) ||
-    value.kind !== 'GetOverview' ||
-    !isRecord(value.overview)
-  ) {
+  if (!isOperationResult(value) || value.kind !== 'GetOverview') {
     return false;
   }
 
-  const overview = value.overview;
   const statusValid =
-    overview.status === null ||
-    (isRecord(overview.status) && validateStatus(overview.status).length === 0);
+    value.status === null ||
+    (isRecord(value.status) && validateStatus(value.status).length === 0);
   const layoutsValid =
-    Array.isArray(overview.layouts) &&
-    overview.layouts.every(
-      (layout) => validateLayoutSummary(layout).length === 0,
-    );
+    Array.isArray(value.layouts) &&
+    value.layouts.every((layout) => validateLayoutSummary(layout).length === 0);
 
   return statusValid && layoutsValid;
 }

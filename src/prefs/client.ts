@@ -19,6 +19,7 @@ import {
 } from '../shared/dbus-responses.js';
 import {
   isOperationResult,
+  operationFailure,
   result,
   type OperationResult,
 } from '../shared/result.js';
@@ -105,10 +106,11 @@ export class ExtensionClient {
             ? value
             : operationFailure(
                 new Error('The extension returned an invalid result.'),
+                describe,
               ),
         );
       },
-      (error) => callback(operationFailure(error)),
+      (error) => callback(operationFailure(error, describe)),
     );
   }
 
@@ -223,10 +225,6 @@ function parseRawReply(reply: any): unknown {
   }
 
   return parsed;
-}
-
-function operationFailure(error: unknown): OperationResult {
-  return result([describe(error)], []);
 }
 
 function describe(error: unknown): string {

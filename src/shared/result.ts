@@ -10,6 +10,13 @@ export function result(errors: string[], messages: string[]): OperationResult {
   return { ok: errors.length === 0, errors, messages };
 }
 
+export function operationFailure(
+  error: unknown,
+  describe: (value: unknown) => string = String,
+): OperationResult {
+  return result([describe(error)], []);
+}
+
 export function isOperationResult(
   value: unknown,
 ): value is Record<string, unknown> & OperationResult {

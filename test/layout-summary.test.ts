@@ -236,10 +236,8 @@ describe('isOverviewResponse', () => {
         errors: [],
         messages: [],
         kind: 'GetOverview',
-        overview: {
-          status: null,
-          layouts: [{ name: 1 }],
-        },
+        status: null,
+        layouts: [{ name: 1 }],
       }),
     ).toBe(false);
   });
