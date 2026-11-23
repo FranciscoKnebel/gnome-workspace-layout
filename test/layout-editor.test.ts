@@ -10,9 +10,11 @@ import {
   hitEditorRect,
   moveEditorRect,
   resizeEditorRect,
+} from '../src/shared/layout-editor.js';
+import {
   withEditorMonitor,
   withEditorPosition,
-} from '../src/shared/layout-editor.js';
+} from '../src/shared/layout-transform.js';
 
 const monitor = { width: 1920, height: 1080 };
 

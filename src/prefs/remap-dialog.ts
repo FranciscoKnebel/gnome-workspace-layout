@@ -1,6 +1,6 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import { remapLayoutWorkspaces } from '../shared/layout-summary.js';
+import { remapLayoutWorkspaces } from '../shared/layout-transform.js';
 import type { LayoutSummary } from '../shared/layout-summary.js';
 import type { RuntimeStatus } from '../shared/status.js';
 import type { ExtensionClient } from './client.js';

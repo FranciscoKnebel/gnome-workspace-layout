@@ -63,18 +63,23 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   Apply(name: string): string {
-    return JSON.stringify(this.operations.run(() => applyLayout(name)));
+    return this.runGated(
+      () => applyLayout(name),
+      (error) => result([String(error)], []),
+    );
   }
 
   Setup(name: string, includeMinimized: boolean): string {
-    return JSON.stringify(
-      this.operations.run(() => captureLayout(name, includeMinimized, false)),
+    return this.runGated(
+      () => captureLayout(name, includeMinimized, false),
+      (error) => result([String(error)], []),
     );
   }
 
   SetupForce(name: string, includeMinimized: boolean): string {
-    return JSON.stringify(
-      this.operations.run(() => captureLayout(name, includeMinimized, true)),
+    return this.runGated(
+      () => captureLayout(name, includeMinimized, true),
+      (error) => result([String(error)], []),
     );
   }
 
@@ -83,34 +88,39 @@ export default class WorkspaceLayoutExtension extends Extension {
     includeMinimized: boolean,
     force: boolean,
   ): string {
-    return JSON.stringify(
-      this.operations.run(() => previewCapture(name, includeMinimized, force)),
+    return this.runRead(
+      () => previewCapture(name, includeMinimized, force),
+      (error) => result([String(error)], []),
     );
   }
 
   SaveSetup(layout: string, force: boolean): string {
-    return JSON.stringify(
-      this.operations.run(() => saveCapture(layout, force)),
+    return this.runGated(
+      () => saveCapture(layout, force),
+      (error) => result([String(error)], []),
     );
   }
 
   Doctor(): string {
-    return JSON.stringify({
-      ok: true,
-      errors: [],
-      messages: [
-        `D-Bus name: ${BUS_NAME}`,
-        `D-Bus object path: ${OBJECT_PATH}`,
-        `Layouts directory: ${layoutsDir()}`,
-        `Schema id: ${LAYOUT_SCHEMA_ID}`,
-        `Monitors detected: ${getMonitorCount()}`,
-        `Workspaces detected: ${getWorkspaceCount()}`,
-      ],
-    } satisfies OperationResult);
+    return this.runRead(
+      () => ({
+        ok: true,
+        errors: [],
+        messages: [
+          `D-Bus name: ${BUS_NAME}`,
+          `D-Bus object path: ${OBJECT_PATH}`,
+          `Layouts directory: ${layoutsDir()}`,
+          `Schema id: ${LAYOUT_SCHEMA_ID}`,
+          `Monitors detected: ${getMonitorCount()}`,
+          `Workspaces detected: ${getWorkspaceCount()}`,
+        ],
+      }),
+      (error) => result([String(error)], []),
+    );
   }
 
   ListLayouts(): string {
-    return this.respond(
+    return this.runRead(
       () => {
         const status = runtimeStatus();
         return listLayoutsResult(
@@ -125,7 +135,7 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   ReadLayout(name: string): string {
-    return this.respond(
+    return this.runRead(
       () => {
         const layout = readLayout(name);
         assertLayout(layout);
@@ -136,36 +146,46 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   DeleteLayout(name: string): string {
-    return this.respond(
+    return this.runGated(
       () => {
         const path = deleteLayout(name);
         return result([], [`Deleted ${path}`]);
       },
       (error) => result([String(error)], []),
-      true,
     );
   }
 
   GetStatus(): string {
-    return this.respond(
+    return this.runRead(
       () => statusResult(runtimeStatus()),
       (error) => statusResult(null, [String(error)]),
     );
   }
 
-  private respond<T extends OperationResult>(
+  private runGated<T extends OperationResult>(
     factory: () => T,
     fallback: (error: unknown) => T,
-    gated = false,
   ): string {
-    const run = () => {
-      try {
-        return factory();
-      } catch (error) {
-        return fallback(error);
-      }
-    };
+    return JSON.stringify(
+      this.operations.run(() => this.withFallback(factory, fallback)),
+    );
+  }
 
-    return JSON.stringify(gated ? this.operations.run(run) : run());
+  private runRead<T extends OperationResult>(
+    factory: () => T,
+    fallback: (error: unknown) => T,
+  ): string {
+    return JSON.stringify(this.withFallback(factory, fallback));
+  }
+
+  private withFallback<T extends OperationResult>(
+    factory: () => T,
+    fallback: (error: unknown) => T,
+  ): T {
+    try {
+      return factory();
+    } catch (error) {
+      return fallback(error);
+    }
   }
 }

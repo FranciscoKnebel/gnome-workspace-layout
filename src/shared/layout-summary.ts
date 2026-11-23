@@ -1,5 +1,4 @@
 import { isRecord } from './objects.js';
-import type { LayoutFile } from './layout.js';
 import { validateLayout } from './layout.js';
 
 export type LayoutEnvironment = {
@@ -62,26 +61,6 @@ export function summarizeLayout(
       (monitor) => !environment.monitors.includes(monitor),
     ),
     modifiedAt: metadata.modifiedAt ?? null,
-  };
-}
-
-export function remapLayoutWorkspaces(
-  layout: LayoutFile,
-  mapping: Readonly<Record<string, string>>,
-): LayoutFile {
-  const workspaces: LayoutFile['workspaces'] = {};
-
-  for (const [workspaceName, workspace] of Object.entries(layout.workspaces)) {
-    const targetName = mapping[workspaceName] ?? workspaceName;
-    workspaces[targetName] ??= { windows: [] };
-    workspaces[targetName].windows.push(...workspace.windows);
-  }
-
-  return {
-    ...(layout.$schema === undefined ? {} : { $schema: layout.$schema }),
-    name: layout.name,
-    workspaces,
-    ...(layout.sticky === undefined ? {} : { sticky: layout.sticky }),
   };
 }
 

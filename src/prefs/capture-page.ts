@@ -1,6 +1,6 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import { selectCapturedWindows } from '../shared/capture.js';
+import { selectCapturedWindows } from '../shared/layout-transform.js';
 import {
   layoutWindowsInApplyOrder,
   validateLayoutName,

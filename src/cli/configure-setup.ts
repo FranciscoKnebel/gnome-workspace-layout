@@ -1,7 +1,7 @@
 import { createInterface } from 'node:readline/promises';
 import type { Readable, Writable } from 'node:stream';
 import { windowDisplayName } from '../shared/display.js';
-import { selectCapturedWindows } from '../shared/capture.js';
+import { selectCapturedWindows } from '../shared/layout-transform.js';
 import type { CapturePreview } from '../shared/dbus-responses.js';
 import {
   layoutWindowsInApplyOrder,

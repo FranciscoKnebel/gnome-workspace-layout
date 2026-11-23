@@ -8,12 +8,14 @@ import {
   hitEditorRect,
   moveEditorRect,
   resizeEditorRect,
-  withEditorMonitor,
-  withEditorPosition,
   type EditorHandle,
   type EditorRect,
   type EditorTarget,
 } from '../shared/layout-editor.js';
+import {
+  withEditorMonitor,
+  withEditorPosition,
+} from '../shared/layout-transform.js';
 import type {
   LayoutFile,
   PositionPreset,

@@ -1,8 +1,10 @@
 import type { LayoutFile } from './layout.js';
+import { validateLayout } from './layout.js';
 import type { LayoutSummary } from './layout-summary.js';
 import { isRecord } from './objects.js';
 import { isOperationResult, result, type OperationResult } from './result.js';
 import type { RuntimeStatus } from './status.js';
+import { validateStatus } from './status.js';
 
 export type CapturePreview = OperationResult & {
   kind: 'PreviewSetup';
@@ -76,7 +78,9 @@ export function isCapturePreview(value: unknown): value is CapturePreview {
   return (
     isOperationResult(value) &&
     value.kind === 'PreviewSetup' &&
-    (value.layout === undefined || isRecord(value.layout))
+    (value.layout === undefined ||
+      (isRecord(value.layout) &&
+        validateLayout(value.layout).errors.length === 0))
   );
 }
 
@@ -97,7 +101,9 @@ export function isReadLayoutResponse(
     isOperationResult(value) &&
     value.kind === 'ReadLayout' &&
     'layout' in value &&
-    (value.layout === null || isRecord(value.layout))
+    (value.layout === null ||
+      (isRecord(value.layout) &&
+        validateLayout(value.layout).errors.length === 0))
   );
 }
 
@@ -106,6 +112,7 @@ export function isStatusResponse(value: unknown): value is StatusResponse {
     isOperationResult(value) &&
     value.kind === 'GetStatus' &&
     'status' in value &&
-    (value.status === null || isRecord(value.status))
+    (value.status === null ||
+      (isRecord(value.status) && validateStatus(value.status).length === 0))
   );
 }

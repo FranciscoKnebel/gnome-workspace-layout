@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LayoutFile } from '../src/shared/layout.js';
-import {
-  remapLayoutWorkspaces,
-  summarizeLayout,
-} from '../src/shared/layout-summary.js';
+import { remapLayoutWorkspaces } from '../src/shared/layout-transform.js';
+import { summarizeLayout } from '../src/shared/layout-summary.js';
 
 const environment = {
   workspaces: ['Dev', 'Chat'],

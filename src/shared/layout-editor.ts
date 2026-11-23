@@ -198,44 +198,6 @@ export function hitEditorHandle(
   return null;
 }
 
-export function withEditorPosition(
-  layout: LayoutFile,
-  index: number,
-  position: WindowPosition,
-): LayoutFile {
-  return updateEditorTarget(layout, index, (target) => {
-    target.window.position = position;
-  });
-}
-
-export function withEditorMonitor(
-  layout: LayoutFile,
-  index: number,
-  monitor: number,
-): LayoutFile {
-  return updateEditorTarget(layout, index, (target) => {
-    target.window.monitor = monitor;
-  });
-}
-
-function updateEditorTarget(
-  layout: LayoutFile,
-  index: number,
-  update: (target: {
-    window: { monitor: number; position: WindowPosition };
-  }) => void,
-): LayoutFile {
-  const copy = JSON.parse(JSON.stringify(layout)) as LayoutFile;
-  const target = layoutWindowsInApplyOrder(copy)[index];
-
-  if (target === undefined) {
-    throw new Error(`Window ${index} does not exist in this layout.`);
-  }
-
-  update(target);
-  return copy;
-}
-
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);
 }
