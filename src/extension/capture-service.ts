@@ -58,13 +58,7 @@ export function previewCapture(
   try {
     const replacing = layoutExists(name);
     if (replacing && !force) {
-      return capturePreviewResult(
-        undefined,
-        [
-          `Layout already exists: ${name}. Use --force to replace it or choose another name.`,
-        ],
-        [],
-      );
+      return capturePreviewResult(undefined, [existingLayoutError(name)], []);
     }
 
     const layout: LayoutFile = {
@@ -123,12 +117,7 @@ export function saveCapture(
       return result(['Select at least one window.'], []);
     }
     if (layoutExists(layout.name) && !force) {
-      return result(
-        [
-          `Layout already exists: ${layout.name}. Use --force to replace it or choose another name.`,
-        ],
-        [],
-      );
+      return result([existingLayoutError(layout.name)], []);
     }
 
     const path = writeLayout(layout.name, layout);
@@ -136,6 +125,10 @@ export function saveCapture(
   } catch (error) {
     return result([String(error)], []);
   }
+}
+
+function existingLayoutError(name: string): string {
+  return `Layout already exists: ${name}. Use --force to replace it or choose another name.`;
 }
 
 function captureWindow(window: any, errors: string[]): LayoutWindow | null {

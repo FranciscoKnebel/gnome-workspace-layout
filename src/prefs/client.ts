@@ -34,42 +34,36 @@ export class ExtensionClient {
   private proxy: any = null;
 
   listLayouts(): ListLayoutsResponse {
-    try {
-      const value = this.request('ListLayouts', '', []);
-      if (isListLayoutsResponse(value)) {
-        return value;
-      }
-
-      throw new Error('The extension returned an invalid layout list.');
-    } catch (error) {
-      return listLayoutsResult([], [describe('ListLayouts', error)]);
-    }
+    return this.requestTyped(
+      'ListLayouts',
+      '',
+      [],
+      isListLayoutsResponse,
+      (errors) => listLayoutsResult([], errors),
+      'The extension returned an invalid layout list.',
+    );
   }
 
   readLayout(name: string): ReadLayoutResponse {
-    try {
-      const value = this.request('ReadLayout', 's', [name]);
-      if (isReadLayoutResponse(value)) {
-        return value;
-      }
-
-      throw new Error('The extension returned an invalid layout.');
-    } catch (error) {
-      return readLayoutResult(null, [describe('ReadLayout', error)]);
-    }
+    return this.requestTyped(
+      'ReadLayout',
+      's',
+      [name],
+      isReadLayoutResponse,
+      (errors) => readLayoutResult(null, errors),
+      'The extension returned an invalid layout.',
+    );
   }
 
   getStatus(): StatusResponse {
-    try {
-      const value = this.request('GetStatus', '', []);
-      if (isStatusResponse(value)) {
-        return value;
-      }
-
-      throw new Error('The extension returned an invalid status.');
-    } catch (error) {
-      return statusResult(null, [describe('GetStatus', error)]);
-    }
+    return this.requestTyped(
+      'GetStatus',
+      '',
+      [],
+      isStatusResponse,
+      (errors) => statusResult(null, errors),
+      'The extension returned an invalid status.',
+    );
   }
 
   previewSetup(
@@ -77,28 +71,36 @@ export class ExtensionClient {
     includeMinimized: boolean,
     force: boolean,
   ): CapturePreview {
-    try {
-      const value = this.request('PreviewSetup', 'sbb', [
-        name,
-        includeMinimized,
-        force,
-      ]);
-      if (isCapturePreview(value)) {
-        return value;
-      }
-
-      throw new Error('The extension returned an invalid capture preview.');
-    } catch (error) {
-      return capturePreviewResult(undefined, [describe('PreviewSetup', error)]);
-    }
+    return this.requestTyped(
+      'PreviewSetup',
+      'sbb',
+      [name, includeMinimized, force],
+      isCapturePreview,
+      (errors) => capturePreviewResult(undefined, errors),
+      'The extension returned an invalid capture preview.',
+    );
   }
 
   saveSetup(layout: string, force: boolean): OperationResult {
-    return this.operation('SaveSetup', 'sb', [layout, force]);
+    return this.requestTyped(
+      'SaveSetup',
+      'sb',
+      [layout, force],
+      isOperationResult,
+      (errors) => result(errors, []),
+      'The extension returned an invalid result.',
+    );
   }
 
   deleteLayout(name: string): OperationResult {
-    return this.operation('DeleteLayout', 's', [name]);
+    return this.requestTyped(
+      'DeleteLayout',
+      's',
+      [name],
+      isOperationResult,
+      (errors) => result(errors, []),
+      'The extension returned an invalid result.',
+    );
   }
 
   apply(
@@ -116,29 +118,31 @@ export class ExtensionClient {
           isOperationResult(value)
             ? value
             : operationFailure(
-                'Apply',
                 new Error('The extension returned an invalid result.'),
               ),
         );
       },
-      (error) => callback(operationFailure('Apply', error)),
+      (error) => callback(operationFailure(error)),
     );
   }
 
-  private operation(
-    method: 'SaveSetup' | 'DeleteLayout',
+  private requestTyped<T>(
+    method: string,
     signature: string,
     values: unknown[],
-  ): OperationResult {
+    guard: (value: unknown) => value is T,
+    fallback: (errors: string[]) => T,
+    invalidMessage: string,
+  ): T {
     try {
       const value = this.request(method, signature, values);
-      if (isOperationResult(value)) {
+      if (guard(value)) {
         return value;
       }
 
-      throw new Error('The extension returned an invalid result.');
+      throw new Error(invalidMessage);
     } catch (error) {
-      return operationFailure(method, error);
+      return fallback([describe(error)]);
     }
   }
 
@@ -235,13 +239,12 @@ function parseRawReply(reply: any): unknown {
   return parsed;
 }
 
-function operationFailure(method: string, error: unknown): OperationResult {
-  return result([describe(method, error)], []);
+function operationFailure(error: unknown): OperationResult {
+  return result([describe(error)], []);
 }
 
-function describe(method: string, error: unknown): string {
+function describe(error: unknown): string {
   return describeDbusFailure(
-    method,
     error instanceof Error ? error.message : String(error),
   );
 }

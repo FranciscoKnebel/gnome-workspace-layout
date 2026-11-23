@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { BUS_NAME, INTERFACE_NAME, OBJECT_PATH } from '../shared/dbus.js';
 import type { OperationResult } from '../shared/result.js';
-import { describeGdbusCallFailure, parseGdbusSingleString } from './gdbus.js';
+import { describeCliDbusFailure, parseGdbusSingleString } from './gdbus.js';
 
 const DBUS_TIMEOUT_SECONDS = 900;
 
@@ -28,7 +28,7 @@ export function callExtension<T extends OperationResult = OperationResult>(
   );
 
   if (response.status !== 0) {
-    throw new Error(describeGdbusCallFailure(method, response.stderr ?? ''));
+    throw new Error(describeCliDbusFailure(method, response.stderr ?? ''));
   }
 
   return JSON.parse(parseGdbusSingleString(response.stdout));

@@ -30,6 +30,10 @@ import {
 } from './editor-canvas.js';
 import { EditorForm } from './editor-form.js';
 import { EditorWindowList } from './editor-window-list.js';
+import {
+  buildMonitorDropdown,
+  setMonitorSelection,
+} from './monitor-widgets.js';
 import { showResult } from './ui.js';
 
 type EditorWindowOptions = {
@@ -124,8 +128,10 @@ export class EditorWindow {
       description: 'Select the monitor shown on the canvas.',
     });
     const viewRow = new Adw.ActionRow({ title: 'View' });
-    this.viewDropdown = this.buildMonitorDropdown((index) =>
-      this.changeViewMonitor(index),
+    this.viewDropdown = buildMonitorDropdown(
+      this.monitors,
+      (index) => this.changeViewMonitor(index),
+      () => this.updating,
     );
     viewRow.add_suffix(this.viewDropdown);
     viewGroup.add(viewRow);
@@ -173,27 +179,6 @@ export class EditorWindow {
     );
     gesture.connect('drag-end', () => this.onDragEnd());
     this.drawing.add_controller(gesture);
-  }
-
-  private buildMonitorDropdown(onChanged: (index: number) => void): any {
-    const model = new Gtk.StringList({
-      strings: this.monitors.map((monitor) => `Monitor ${monitor.index}`),
-    });
-    const dropdown = new Gtk.DropDown({
-      model,
-      valign: Gtk.Align.CENTER,
-    });
-    dropdown.connect('notify::selected', () => {
-      if (this.updating) {
-        return;
-      }
-
-      const monitor = this.monitors[dropdown.get_selected()];
-      if (monitor !== undefined) {
-        onChanged(monitor.index);
-      }
-    });
-    return dropdown;
   }
 
   private currentMonitor(): MonitorStatus {
@@ -317,7 +302,7 @@ export class EditorWindow {
     this.refreshCanvas();
     const first = this.visible[0];
     this.setSelection(first?.index ?? null);
-    this.setMonitorSelection(this.viewDropdown, monitorIndex);
+    setMonitorSelection(this.viewDropdown, this.monitors, monitorIndex);
   }
 
   private changeWindowMonitor(monitorIndex: number): void {
@@ -369,7 +354,7 @@ export class EditorWindow {
 
   private refreshAll(): void {
     this.updating = true;
-    this.setMonitorSelection(this.viewDropdown, this.monitorIndex);
+    setMonitorSelection(this.viewDropdown, this.monitors, this.monitorIndex);
     this.updating = false;
     this.refreshCanvas();
     this.refreshWindowList();
@@ -398,16 +383,6 @@ export class EditorWindow {
         ? undefined
         : editorTargets(this.layout)[this.selectedIndex];
     this.form.setTarget(target, this.monitorSize(), this.monitorRect());
-  }
-
-  private setMonitorSelection(dropdown: any, monitorIndex: number): void {
-    const position = this.monitors.findIndex(
-      (monitor) => monitor.index === monitorIndex,
-    );
-
-    if (position >= 0) {
-      dropdown.set_selected(position);
-    }
   }
 
   private revert(): void {

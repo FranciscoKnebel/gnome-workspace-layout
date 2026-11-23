@@ -2,26 +2,21 @@ export const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
 export const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
 export const INTERFACE_NAME = 'com.franciscoknebel.WorkspaceLayout';
 
-export function describeDbusFailure(method: string, message: string): string {
+export function describeDbusFailure(message: string): string {
   if (
-    (method === 'PreviewSetup' || method === 'SaveSetup') &&
-    message.includes('UnknownMethod')
+    message.includes('org.freedesktop.DBus.Error.UnknownMethod') ||
+    message.includes('UnknownMethod') ||
+    message.includes('Unknown method')
   ) {
-    return 'The running extension does not support --configure. Reinstall the extension and log out/in, then try again.';
-  }
-
-  if (method === 'SetupForce' && message.includes('UnknownMethod')) {
-    return 'The running extension does not support --force. Restart GNOME Shell or log out/in, then try again.';
-  }
-
-  if (message.includes('UnknownMethod') || message.includes('Unknown method')) {
     return 'The installed extension is older than this client. Reinstall it and restart GNOME Shell.';
   }
 
   if (
     [
-      'ServiceUnknown',
+      'org.freedesktop.DBus.Error.ServiceUnknown',
+      'org.freedesktop.DBus.Error.NameHasNoOwner',
       'NameHasNoOwner',
+      'ServiceUnknown',
       'not activatable',
       'Could not connect',
     ].some((candidate) => message.includes(candidate))
@@ -35,7 +30,7 @@ export function describeDbusFailure(method: string, message: string): string {
     return 'Another workspace-layout operation is already running. Wait for it to finish and try again.';
   }
 
-  if (message.includes('Timeout was reached')) {
+  if (message.includes('org.freedesktop.DBus.Error.Timeout')) {
     return 'The extension did not answer in time. It may still be applying the layout.';
   }
 

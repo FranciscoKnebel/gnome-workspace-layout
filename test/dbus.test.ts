@@ -15,33 +15,29 @@ describe('D-Bus identity', () => {
 });
 
 describe('describeDbusFailure', () => {
-  it('keeps method-specific wizard guidance', () => {
-    expect(
-      describeDbusFailure('PreviewSetup', 'UnknownMethod: No such method'),
-    ).toContain('does not support --configure');
-    expect(
-      describeDbusFailure('SetupForce', 'UnknownMethod: No such method'),
-    ).toContain('does not support --force');
-  });
-
   it('explains a missing or outdated extension', () => {
     expect(
-      describeDbusFailure('Apply', 'org.freedesktop.DBus.Error.ServiceUnknown'),
+      describeDbusFailure(
+        'org.freedesktop.DBus.Error.ServiceUnknown: The name is not activatable',
+      ),
     ).toContain('is not running');
-    expect(describeDbusFailure('Apply', 'UnknownMethod')).toContain(
-      'older than this client',
-    );
+    expect(
+      describeDbusFailure(
+        'org.freedesktop.DBus.Error.UnknownMethod: No such method',
+      ),
+    ).toContain('older than this client');
   });
 
   it('reports gate and timeout conditions', () => {
     expect(
       describeDbusFailure(
-        'Apply',
         'Another workspace-layout operation is already running',
       ),
     ).toContain('already running');
-    expect(describeDbusFailure('Apply', 'Timeout was reached')).toContain(
-      'did not answer in time',
-    );
+    expect(
+      describeDbusFailure(
+        'org.freedesktop.DBus.Error.Timeout: Timeout was reached',
+      ),
+    ).toContain('did not answer in time');
   });
 });

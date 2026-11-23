@@ -10,7 +10,9 @@ export function result(errors: string[], messages: string[]): OperationResult {
   return { ok: errors.length === 0, errors, messages };
 }
 
-export function isOperationResult(value: unknown): value is OperationResult {
+export function isOperationResult(
+  value: unknown,
+): value is Record<string, unknown> & OperationResult {
   return (
     isRecord(value) &&
     typeof value.ok === 'boolean' &&

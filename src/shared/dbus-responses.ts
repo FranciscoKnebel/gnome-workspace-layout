@@ -1,7 +1,7 @@
 import type { LayoutFile } from './layout.js';
 import type { LayoutSummary } from './layout-summary.js';
 import { isRecord } from './objects.js';
-import { result, type OperationResult } from './result.js';
+import { isOperationResult, result, type OperationResult } from './result.js';
 import type { RuntimeStatus } from './status.js';
 
 export type CapturePreview = OperationResult & {
@@ -74,7 +74,7 @@ export function statusResult(
 
 export function isCapturePreview(value: unknown): value is CapturePreview {
   return (
-    isResultRecord(value) &&
+    isOperationResult(value) &&
     value.kind === 'PreviewSetup' &&
     (value.layout === undefined || isRecord(value.layout))
   );
@@ -84,7 +84,7 @@ export function isListLayoutsResponse(
   value: unknown,
 ): value is ListLayoutsResponse {
   return (
-    isResultRecord(value) &&
+    isOperationResult(value) &&
     value.kind === 'ListLayouts' &&
     Array.isArray(value.layouts)
   );
@@ -94,7 +94,7 @@ export function isReadLayoutResponse(
   value: unknown,
 ): value is ReadLayoutResponse {
   return (
-    isResultRecord(value) &&
+    isOperationResult(value) &&
     value.kind === 'ReadLayout' &&
     'layout' in value &&
     (value.layout === null || isRecord(value.layout))
@@ -103,22 +103,9 @@ export function isReadLayoutResponse(
 
 export function isStatusResponse(value: unknown): value is StatusResponse {
   return (
-    isResultRecord(value) &&
+    isOperationResult(value) &&
     value.kind === 'GetStatus' &&
     'status' in value &&
     (value.status === null || isRecord(value.status))
-  );
-}
-
-function isResultRecord(
-  value: unknown,
-): value is Record<string, unknown> & OperationResult {
-  return (
-    isRecord(value) &&
-    typeof value.ok === 'boolean' &&
-    Array.isArray(value.errors) &&
-    value.errors.every((error) => typeof error === 'string') &&
-    Array.isArray(value.messages) &&
-    value.messages.every((message) => typeof message === 'string')
   );
 }

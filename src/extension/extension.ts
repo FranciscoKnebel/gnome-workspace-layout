@@ -110,49 +110,62 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   ListLayouts(): string {
-    try {
-      const status = runtimeStatus();
-      return JSON.stringify(
-        listLayoutsResult(
+    return this.respond(
+      () => {
+        const status = runtimeStatus();
+        return listLayoutsResult(
           listLayouts({
             workspaces: status.workspaces.map((workspace) => workspace.name),
             monitors: status.monitors.map((monitor) => monitor.index),
           }),
-        ),
-      );
-    } catch (error) {
-      return JSON.stringify(listLayoutsResult([], [String(error)]));
-    }
+        );
+      },
+      (error) => listLayoutsResult([], [String(error)]),
+    );
   }
 
   ReadLayout(name: string): string {
-    try {
-      const layout = readLayout(name);
-      assertLayout(layout);
-      return JSON.stringify(readLayoutResult(layout));
-    } catch (error) {
-      return JSON.stringify(readLayoutResult(null, [String(error)]));
-    }
+    return this.respond(
+      () => {
+        const layout = readLayout(name);
+        assertLayout(layout);
+        return readLayoutResult(layout);
+      },
+      (error) => readLayoutResult(null, [String(error)]),
+    );
   }
 
   DeleteLayout(name: string): string {
-    return JSON.stringify(
-      this.operations.run(() => {
-        try {
-          const path = deleteLayout(name);
-          return result([], [`Deleted ${path}`]);
-        } catch (error) {
-          return result([String(error)], []);
-        }
-      }),
+    return this.respond(
+      () => {
+        const path = deleteLayout(name);
+        return result([], [`Deleted ${path}`]);
+      },
+      (error) => result([String(error)], []),
+      true,
     );
   }
 
   GetStatus(): string {
-    try {
-      return JSON.stringify(statusResult(runtimeStatus()));
-    } catch (error) {
-      return JSON.stringify(statusResult(null, [String(error)]));
-    }
+    return this.respond(
+      () => statusResult(runtimeStatus()),
+      (error) => statusResult(null, [String(error)]),
+    );
+  }
+
+  private respond<T extends OperationResult>(
+    factory: () => T,
+    fallback: (error: unknown) => T,
+    gated = false,
+  ): string {
+    const run = () => {
+      try {
+        return factory();
+      } catch (error) {
+        return fallback(error);
+      }
+    };
+
+    return JSON.stringify(gated ? this.operations.run(run) : run());
   }
 }

@@ -14,6 +14,10 @@ import {
   type WindowPosition,
 } from '../shared/layout.js';
 import type { MonitorStatus } from '../shared/status.js';
+import {
+  buildMonitorDropdown,
+  setMonitorSelection,
+} from './monitor-widgets.js';
 import { singleLine } from './ui.js';
 
 type EditorFormOptions = {
@@ -53,8 +57,10 @@ export class EditorForm {
     });
 
     const monitorRow = new Adw.ActionRow({ title: 'Window monitor' });
-    this.monitorDropdown = this.buildMonitorDropdown((monitor) =>
-      options.onMonitorChange(monitor),
+    this.monitorDropdown = buildMonitorDropdown(
+      this.options.monitors,
+      (monitor) => options.onMonitorChange(monitor),
+      () => this.updating,
     );
     monitorRow.add_suffix(this.monitorDropdown);
 
@@ -126,7 +132,11 @@ export class EditorForm {
     this.selectionRow.set_subtitle(singleLine(target.label));
     this.workspaceRow.set_subtitle(singleLine(target.workspaceLabel));
     this.setControlsEnabled(true);
-    this.setMonitorSelection(target.monitor);
+    setMonitorSelection(
+      this.monitorDropdown,
+      this.options.monitors,
+      target.monitor,
+    );
 
     if (typeof target.position === 'string') {
       this.presetDropdown.set_selected(
@@ -156,29 +166,6 @@ export class EditorForm {
     this.statusRow.visible = false;
   }
 
-  private buildMonitorDropdown(onChanged: (monitor: number) => void): any {
-    const model = new Gtk.StringList({
-      strings: this.options.monitors.map(
-        (monitor) => `Monitor ${monitor.index}`,
-      ),
-    });
-    const dropdown = new Gtk.DropDown({
-      model,
-      valign: Gtk.Align.CENTER,
-    });
-    dropdown.connect('notify::selected', () => {
-      if (this.updating) {
-        return;
-      }
-
-      const monitor = this.options.monitors[dropdown.get_selected()];
-      if (monitor !== undefined) {
-        onChanged(monitor.index);
-      }
-    });
-    return dropdown;
-  }
-
   private buildPercentEntry(onActivate: () => void): any {
     const entry = new Gtk.Entry({
       text: '0',
@@ -206,16 +193,6 @@ export class EditorForm {
 
     for (const entry of Object.values(this.entries)) {
       entry.set_sensitive(enabled);
-    }
-  }
-
-  private setMonitorSelection(monitorIndex: number): void {
-    const position = this.options.monitors.findIndex(
-      (monitor) => monitor.index === monitorIndex,
-    );
-
-    if (position >= 0) {
-      this.monitorDropdown.set_selected(position);
     }
   }
 
