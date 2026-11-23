@@ -14,7 +14,11 @@ export function layoutExists(name: string): boolean {
 }
 
 export function readLayout(name: string): unknown {
-  const [, contents] = GLib.file_get_contents(layoutPath(name));
+  return readLayoutFile(layoutPath(name));
+}
+
+function readLayoutFile(path: string): unknown {
+  const [, contents] = GLib.file_get_contents(path);
   return JSON.parse(new TextDecoder().decode(contents));
 }
 
@@ -80,8 +84,7 @@ export function listLayouts(environment: LayoutEnvironment): LayoutSummary[] {
 
       let layout: unknown;
       try {
-        const [, contents] = GLib.file_get_contents(path);
-        layout = JSON.parse(new TextDecoder().decode(contents));
+        layout = readLayoutFile(path);
       } catch (error) {
         summaries.push(
           invalidSummary(name, path, modifiedAt, [

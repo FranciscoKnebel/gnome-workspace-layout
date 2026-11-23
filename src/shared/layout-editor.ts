@@ -1,4 +1,5 @@
 import { detectPosition, resolvePosition } from './geometry.js';
+import { windowDisplayName } from './display.js';
 import type { LayoutFile, WindowPosition } from './layout.js';
 import { layoutWindowsInApplyOrder } from './layout.js';
 
@@ -31,12 +32,7 @@ export function editorTargets(layout: LayoutFile): EditorTarget[] {
   return layoutWindowsInApplyOrder(layout).map((target, index) => ({
     index,
     kind: target.kind,
-    label:
-      target.window.label ??
-      target.window.title ??
-      target.window.appId ??
-      target.window.command ??
-      'Window',
+    label: windowDisplayName(target.window),
     workspaceLabel:
       target.kind === 'sticky'
         ? 'All workspaces (sticky)'

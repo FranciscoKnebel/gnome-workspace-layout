@@ -1,4 +1,5 @@
 import { resolvePosition } from '../shared/geometry.js';
+import { windowDisplayName } from '../shared/display.js';
 import {
   assertLayout,
   layoutWindowsInApplyOrder,
@@ -74,13 +75,12 @@ function launchAndPlaceWindow(
   placeInWorkspace: (window: any) => void,
 ): OperationResult {
   try {
+    const displayName = windowDisplayName(windowEntry);
     const monitorRect = getMonitorRect(windowEntry.monitor);
 
     if (monitorRect === null) {
       return result(
-        [
-          `Monitor ${windowEntry.monitor} not found for ${windowEntry.label ?? 'window'}`,
-        ],
+        [`Monitor ${windowEntry.monitor} not found for ${displayName}`],
         [],
       );
     }
@@ -88,12 +88,7 @@ function launchAndPlaceWindow(
     const created = launchAndWaitForNewWindow(windowEntry, workspaceIndex);
 
     if (created === null) {
-      return result(
-        [
-          `Timed out waiting for ${windowEntry.label ?? windowEntry.command ?? windowEntry.appId}`,
-        ],
-        [],
-      );
+      return result([`Timed out waiting for ${displayName}`], []);
     }
 
     placeInWorkspace(created);
@@ -103,12 +98,7 @@ function launchAndPlaceWindow(
       created.minimize();
     }
 
-    return result(
-      [],
-      [
-        `Placed ${windowEntry.label ?? created.get_title()} on ${workspaceName}`,
-      ],
-    );
+    return result([], [`Placed ${displayName} on ${workspaceName}`]);
   } catch (error) {
     return result([String(error)], []);
   }

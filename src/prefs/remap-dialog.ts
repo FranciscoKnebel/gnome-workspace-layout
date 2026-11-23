@@ -125,9 +125,7 @@ export class RemapDialog {
     }
 
     this.setBusy(true);
-    const read = this.options.client.call('ReadLayout', 's', [
-      this.options.summary.name,
-    ]);
+    const read = this.options.client.readLayout(this.options.summary.name);
 
     if (!read.ok || read.layout === null) {
       this.setBusy(false);
@@ -139,10 +137,7 @@ export class RemapDialog {
       ...remapLayoutWorkspaces(read.layout, mapping),
       name: this.options.summary.name,
     };
-    const saved = this.options.client.call('SaveSetup', 'sb', [
-      JSON.stringify(remapped),
-      true,
-    ]);
+    const saved = this.options.client.saveSetup(JSON.stringify(remapped), true);
 
     this.setBusy(false);
 

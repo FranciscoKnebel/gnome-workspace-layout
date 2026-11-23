@@ -1,5 +1,6 @@
 import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
+import { windowDisplayName } from '../shared/display.js';
 import type { LayoutWindow, WindowPosition } from '../shared/layout.js';
 import type { OperationResult } from '../shared/result.js';
 
@@ -89,13 +90,7 @@ export function plural(count: number, singular: string): string {
 }
 
 export function formatWindowTitle(windowEntry: LayoutWindow): string {
-  return singleLine(
-    windowEntry.label ??
-      windowEntry.title ??
-      windowEntry.appId ??
-      windowEntry.command ??
-      'Window',
-  );
+  return singleLine(windowDisplayName(windowEntry));
 }
 
 export function formatWindowDetails(windowEntry: LayoutWindow): string {

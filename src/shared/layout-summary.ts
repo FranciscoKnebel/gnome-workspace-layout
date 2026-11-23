@@ -1,3 +1,4 @@
+import { isRecord } from './objects.js';
 import type { LayoutFile } from './layout.js';
 import { validateLayout } from './layout.js';
 
@@ -132,8 +133,4 @@ function readStickyEntries(layout: unknown): unknown[] {
 
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

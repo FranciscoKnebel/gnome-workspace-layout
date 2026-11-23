@@ -1,8 +1,6 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import { absoluteToRelative } from '../shared/geometry.js';
 import {
-  clampEditorRect,
   editorPosition,
   editorRect,
   editorTargets,
@@ -14,8 +12,13 @@ import {
   withEditorPosition,
   type EditorHandle,
   type EditorRect,
+  type EditorTarget,
 } from '../shared/layout-editor.js';
-import { POSITION_PRESETS, type LayoutFile } from '../shared/layout.js';
+import type {
+  LayoutFile,
+  PositionPreset,
+  WindowPosition,
+} from '../shared/layout.js';
 import type { MonitorStatus, RuntimeStatus } from '../shared/status.js';
 import type { ExtensionClient } from './client.js';
 import {
@@ -25,7 +28,9 @@ import {
   type CanvasEntry,
   type CanvasMetrics,
 } from './editor-canvas.js';
-import { showResult, singleLine } from './ui.js';
+import { EditorForm } from './editor-form.js';
+import { EditorWindowList } from './editor-window-list.js';
+import { showResult } from './ui.js';
 
 type EditorWindowOptions = {
   parentWindow: any;
@@ -50,22 +55,13 @@ export class EditorWindow {
   private readonly initialLayout: LayoutFile;
   private readonly monitors: MonitorStatus[];
   private readonly viewDropdown: any;
-  private readonly monitorDropdown: any;
-  private readonly presetDropdown: any;
-  private readonly xEntry: any;
-  private readonly yEntry: any;
-  private readonly widthEntry: any;
-  private readonly heightEntry: any;
-  private readonly selectionRow: any;
-  private readonly workspaceRow: any;
-  private readonly statusRow: any;
-  private readonly windowsGroup: any;
+  private readonly form: EditorForm;
+  private readonly windowList: EditorWindowList;
   private readonly saveButton: any;
   private layout: LayoutFile;
   private monitorIndex: number;
   private selectedIndex: number | null = null;
   private visible: CanvasEntry[] = [];
-  private windowRows: any[] = [];
   private drag: DragState | null = null;
   private metrics: CanvasMetrics = { scale: 1, offsetX: 0, offsetY: 0 };
   private updating = false;
@@ -136,72 +132,19 @@ export class EditorWindow {
     leftBox.append(viewGroup);
     leftBox.append(this.drawing);
 
+    this.form = new EditorForm({
+      monitors: this.monitors,
+      onMonitorChange: (monitor) => this.changeWindowMonitor(monitor),
+      onPresetChange: (preset) => this.changePreset(preset),
+      onPositionChange: (position) => this.changePosition(position),
+    });
+    this.windowList = new EditorWindowList((target) =>
+      this.onWindowSelected(target),
+    );
+
     const page = new Adw.PreferencesPage();
-    const selectionGroup = new Adw.PreferencesGroup({
-      title: 'Selected window',
-      description:
-        'Drag a rectangle to move it, drag its handles to resize it, or enter exact percentages below.',
-    });
-    this.selectionRow = new Adw.ActionRow({
-      title: 'Window',
-      subtitle: 'No window selected',
-    });
-    this.workspaceRow = new Adw.ActionRow({
-      title: 'Workspace',
-      subtitle: 'None',
-    });
-    const monitorRow = new Adw.ActionRow({ title: 'Window monitor' });
-    this.monitorDropdown = this.buildMonitorDropdown((index) =>
-      this.changeWindowMonitor(index),
-    );
-    monitorRow.add_suffix(this.monitorDropdown);
-    const presetRow = new Adw.ActionRow({ title: 'Position' });
-    const presetModel = new Gtk.StringList({
-      strings: ['Custom', ...POSITION_PRESETS],
-    });
-    this.presetDropdown = new Gtk.DropDown({
-      model: presetModel,
-      valign: Gtk.Align.CENTER,
-    });
-    this.presetDropdown.connect('notify::selected', () => this.changePreset());
-    presetRow.add_suffix(this.presetDropdown);
-
-    this.xEntry = this.buildPercentEntry();
-    this.yEntry = this.buildPercentEntry();
-    this.widthEntry = this.buildPercentEntry();
-    this.heightEntry = this.buildPercentEntry();
-    const xRow = this.buildPercentRow('X', this.xEntry, 'x');
-    const yRow = this.buildPercentRow('Y', this.yEntry, 'y');
-    const widthRow = this.buildPercentRow('Width', this.widthEntry, 'width');
-    const heightRow = this.buildPercentRow(
-      'Height',
-      this.heightEntry,
-      'height',
-    );
-
-    this.statusRow = new Adw.ActionRow({ title: 'Message', subtitle: '' });
-    this.statusRow.visible = false;
-
-    for (const row of [
-      this.selectionRow,
-      this.workspaceRow,
-      monitorRow,
-      presetRow,
-      xRow,
-      yRow,
-      widthRow,
-      heightRow,
-      this.statusRow,
-    ]) {
-      selectionGroup.add(row);
-    }
-
-    this.windowsGroup = new Adw.PreferencesGroup({
-      title: 'Windows in this layout',
-      description: 'Select a window to edit its placement.',
-    });
-    page.add(selectionGroup);
-    page.add(this.windowsGroup);
+    page.add(this.form.group);
+    page.add(this.windowList.group);
 
     paned.set_start_child(leftBox);
     paned.set_end_child(page);
@@ -245,38 +188,12 @@ export class EditorWindow {
         return;
       }
 
-      const selected = dropdown.get_selected();
-      const monitor = this.monitors[selected];
+      const monitor = this.monitors[dropdown.get_selected()];
       if (monitor !== undefined) {
         onChanged(monitor.index);
       }
     });
     return dropdown;
-  }
-
-  private buildPercentEntry(): any {
-    const entry = new Gtk.Entry({
-      text: '0',
-      width_chars: 7,
-      valign: Gtk.Align.CENTER,
-    });
-    entry.connect('activate', () => this.commitPercentEntries());
-    return entry;
-  }
-
-  private buildPercentRow(title: string, entry: any, field: string): any {
-    const row = new Adw.ActionRow({ title: `${title} (%)` });
-    row.add_suffix(entry);
-
-    const focus = new Gtk.EventControllerFocus();
-    focus.connect('leave', () => {
-      if (!this.updating) {
-        this.commitPercentField(field, entry.get_text());
-      }
-    });
-    entry.add_controller(focus);
-
-    return row;
   }
 
   private currentMonitor(): MonitorStatus {
@@ -374,7 +291,7 @@ export class EditorWindow {
       editorPosition(rect, size),
     );
     this.refreshCanvas();
-    this.refreshSelectedControls();
+    this.syncForm();
   }
 
   private onDragEnd(): void {
@@ -383,10 +300,19 @@ export class EditorWindow {
     }
 
     this.drag = null;
-    this.refreshWindowRows();
+    this.refreshWindowList();
+  }
+
+  private onWindowSelected(target: EditorTarget): void {
+    this.changeViewMonitor(target.monitor);
+    this.setSelection(target.index);
   }
 
   private changeViewMonitor(monitorIndex: number): void {
+    if (this.updating) {
+      return;
+    }
+
     this.monitorIndex = monitorIndex;
     this.refreshCanvas();
     const first = this.visible[0];
@@ -405,80 +331,29 @@ export class EditorWindow {
       monitorIndex,
     );
     this.refreshCanvas();
-    this.refreshWindowRows();
-    this.refreshSelectedControls();
+    this.refreshWindowList();
+    this.syncForm();
   }
 
-  private changePreset(): void {
-    if (
-      this.updating ||
-      this.selectedIndex === null ||
-      this.presetDropdown.get_selected() === 0
-    ) {
+  private changePreset(preset: PositionPreset): void {
+    if (this.selectedIndex === null) {
       return;
     }
 
-    const preset = POSITION_PRESETS[this.presetDropdown.get_selected() - 1];
-    if (preset !== undefined) {
-      this.layout = withEditorPosition(this.layout, this.selectedIndex, preset);
-      this.refreshCanvas();
-      this.refreshSelectedControls();
-    }
-  }
-
-  private commitPercentEntries(): void {
-    const entries = [
-      ['x', this.xEntry],
-      ['y', this.yEntry],
-      ['width', this.widthEntry],
-      ['height', this.heightEntry],
-    ] as const;
-    const pending = entries.map(
-      ([field, entry]) => [field, entry.get_text()] as const,
-    );
-
-    let changed = false;
-    for (const [field, text] of pending) {
-      changed = this.commitPercentField(field, text) || changed;
-    }
-
-    if (changed) {
-      this.refreshWindowRows();
-    }
-  }
-
-  private commitPercentField(field: string, text: string): boolean {
-    if (this.updating || this.selectedIndex === null) {
-      return false;
-    }
-
-    const value = Number.parseFloat(text.replace('%', '').trim());
-    if (!Number.isFinite(value)) {
-      this.showStatus(`Enter a number for ${field}.`);
-      return false;
-    }
-
-    const size = this.monitorSize();
-    const target = editorTargets(this.layout)[this.selectedIndex];
-    if (target === undefined) {
-      return false;
-    }
-
-    const relative = absoluteToRelative(
-      editorRect(target.position, size),
-      this.monitorRect(),
-    );
-    const next = { ...relative, [field]: value / 100 };
-    const rect = clampEditorRect(editorRect(next, size), size);
-    this.layout = withEditorPosition(
-      this.layout,
-      this.selectedIndex,
-      editorPosition(rect, size),
-    );
-    this.hideStatus();
+    this.layout = withEditorPosition(this.layout, this.selectedIndex, preset);
     this.refreshCanvas();
-    this.refreshSelectedControls();
-    return true;
+    this.syncForm();
+  }
+
+  private changePosition(position: WindowPosition): void {
+    if (this.selectedIndex === null) {
+      return;
+    }
+
+    this.layout = withEditorPosition(this.layout, this.selectedIndex, position);
+    this.refreshCanvas();
+    this.refreshWindowList();
+    this.syncForm();
   }
 
   private setSelection(index: number | null): void {
@@ -487,17 +362,18 @@ export class EditorWindow {
     }
 
     this.selectedIndex = index;
-    this.refreshWindowRows();
-    this.refreshSelectedControls();
+    this.refreshWindowList();
+    this.syncForm();
     this.drawing.queue_draw();
   }
 
   private refreshAll(): void {
+    this.updating = true;
     this.setMonitorSelection(this.viewDropdown, this.monitorIndex);
+    this.updating = false;
     this.refreshCanvas();
-    this.refreshWindowRows();
-    this.refreshSelectedControls();
-    this.hideStatus();
+    this.refreshWindowList();
+    this.syncForm();
   }
 
   private refreshCanvas(): void {
@@ -512,81 +388,16 @@ export class EditorWindow {
     this.drawing.queue_draw();
   }
 
-  private refreshWindowRows(): void {
-    for (const row of this.windowRows) {
-      this.windowsGroup.remove(row);
-    }
-    this.windowRows = [];
-
-    for (const target of editorTargets(this.layout)) {
-      const row = new Adw.ActionRow({
-        title: singleLine(target.label),
-        subtitle: `${singleLine(target.workspaceLabel)} | Monitor ${target.monitor}`,
-      });
-      row.set_subtitle_lines(2);
-      row.set_activatable(true);
-
-      if (target.index === this.selectedIndex) {
-        row.add_prefix(new Gtk.Image({ icon_name: 'emblem-default-symbolic' }));
-      }
-
-      row.connect('activated', () => {
-        this.changeViewMonitor(target.monitor);
-        this.setSelection(target.index);
-      });
-      this.windowsGroup.add(row);
-      this.windowRows.push(row);
-    }
+  private refreshWindowList(): void {
+    this.windowList.render(editorTargets(this.layout), this.selectedIndex);
   }
 
-  private refreshSelectedControls(): void {
-    this.updating = true;
+  private syncForm(): void {
     const target =
       this.selectedIndex === null
         ? undefined
         : editorTargets(this.layout)[this.selectedIndex];
-
-    if (target === undefined) {
-      this.selectionRow.set_subtitle('No window selected');
-      this.workspaceRow.set_subtitle('None');
-      this.monitorDropdown.set_sensitive(false);
-      this.presetDropdown.set_sensitive(false);
-      this.xEntry.set_sensitive(false);
-      this.yEntry.set_sensitive(false);
-      this.widthEntry.set_sensitive(false);
-      this.heightEntry.set_sensitive(false);
-      this.updating = false;
-      return;
-    }
-
-    this.selectionRow.set_subtitle(singleLine(target.label));
-    this.workspaceRow.set_subtitle(singleLine(target.workspaceLabel));
-    this.monitorDropdown.set_sensitive(true);
-    this.presetDropdown.set_sensitive(true);
-    this.xEntry.set_sensitive(true);
-    this.yEntry.set_sensitive(true);
-    this.widthEntry.set_sensitive(true);
-    this.heightEntry.set_sensitive(true);
-    this.setMonitorSelection(this.monitorDropdown, target.monitor);
-
-    if (typeof target.position === 'string') {
-      this.presetDropdown.set_selected(
-        POSITION_PRESETS.indexOf(target.position) + 1,
-      );
-    } else {
-      this.presetDropdown.set_selected(0);
-    }
-
-    const size = this.monitorSize();
-    const relative = absoluteToRelative(
-      editorRect(target.position, size),
-      this.monitorRect(),
-    );
-    this.xEntry.set_text(formatPercent(relative.x));
-    this.yEntry.set_text(formatPercent(relative.y));
-    this.widthEntry.set_text(formatPercent(relative.width));
-    this.heightEntry.set_text(formatPercent(relative.height));
-    this.updating = false;
+    this.form.setTarget(target, this.monitorSize(), this.monitorRect());
   }
 
   private setMonitorSelection(dropdown: any, monitorIndex: number): void {
@@ -599,15 +410,6 @@ export class EditorWindow {
     }
   }
 
-  private showStatus(message: string): void {
-    this.statusRow.set_subtitle(singleLine(message));
-    this.statusRow.visible = true;
-  }
-
-  private hideStatus(): void {
-    this.statusRow.visible = false;
-  }
-
   private revert(): void {
     this.layout = copyLayout(this.initialLayout);
     this.monitorIndex = this.monitors[0].index;
@@ -617,10 +419,10 @@ export class EditorWindow {
   }
 
   private save(): void {
-    const response = this.options.client.call('SaveSetup', 'sb', [
+    const response = this.options.client.saveSetup(
       JSON.stringify({ ...this.layout, name: this.options.name }),
       true,
-    ]);
+    );
 
     if (!response.ok) {
       showResult(this.window, 'Could not save layout', response);
@@ -635,8 +437,4 @@ export class EditorWindow {
 
 function copyLayout(layout: LayoutFile): LayoutFile {
   return JSON.parse(JSON.stringify(layout)) as LayoutFile;
-}
-
-function formatPercent(value: number): string {
-  return `${Math.round(value * 1000) / 10}`;
 }

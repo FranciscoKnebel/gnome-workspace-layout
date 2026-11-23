@@ -1,3 +1,5 @@
+import { isRecord } from './objects.js';
+
 export type ReleaseValidationResult = {
   errors: string[];
 };
@@ -91,8 +93,4 @@ function isDevelopmentOnly(file: string): boolean {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

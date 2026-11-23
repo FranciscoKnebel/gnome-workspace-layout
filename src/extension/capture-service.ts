@@ -1,5 +1,6 @@
 import { detectPosition } from '../shared/geometry.js';
 import type { CapturePreview } from '../shared/dbus-responses.js';
+import { capturePreviewResult } from '../shared/dbus-responses.js';
 import type {
   LayoutFile,
   LayoutWindow,
@@ -51,13 +52,14 @@ export function previewCapture(
   const nameErrors = validateLayoutName(name);
 
   if (nameErrors.length > 0) {
-    return result(nameErrors, []);
+    return capturePreviewResult(undefined, nameErrors, []);
   }
 
   try {
     const replacing = layoutExists(name);
     if (replacing && !force) {
-      return result(
+      return capturePreviewResult(
+        undefined,
         [
           `Layout already exists: ${name}. Use --force to replace it or choose another name.`,
         ],
@@ -93,21 +95,21 @@ export function previewCapture(
     }
 
     if (replacing && errors.length > 0) {
-      return result(errors, messages);
+      return capturePreviewResult(undefined, errors, messages);
     }
 
     const validationErrors = validateLayout(layout).errors;
     errors.push(...validationErrors);
     if (validationErrors.length > 0) {
-      return result(errors, messages);
+      return capturePreviewResult(undefined, errors, messages);
     }
 
-    return { ...result(errors, messages), layout };
+    return capturePreviewResult(layout, errors, messages);
   } catch (error) {
     errors.push(String(error));
   }
 
-  return result(errors, messages);
+  return capturePreviewResult(undefined, errors, messages);
 }
 
 export function saveCapture(

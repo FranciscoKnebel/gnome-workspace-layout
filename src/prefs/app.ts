@@ -53,8 +53,8 @@ export class WorkspaceLayoutApp {
   }
 
   refresh(): void {
-    const statusResponse = this.client.call('GetStatus', '', []);
-    const layoutsResponse = this.client.call('ListLayouts', '', []);
+    const statusResponse = this.client.getStatus();
+    const layoutsResponse = this.client.listLayouts();
 
     this.status = statusResponse.status;
     this.layouts = layoutsResponse.layouts;
@@ -178,20 +178,14 @@ export class WorkspaceLayoutApp {
     }
 
     this.setBusy(true, name);
-    this.client.callAsync(
-      'Apply',
-      's',
-      [name],
-      APPLY_TIMEOUT_MS,
-      (response) => {
-        this.setBusy(false);
-        showResult(
-          this.window,
-          response.ok ? 'Layout applied' : 'Layout applied with errors',
-          response,
-        );
-      },
-    );
+    this.client.apply(name, APPLY_TIMEOUT_MS, (response) => {
+      this.setBusy(false);
+      showResult(
+        this.window,
+        response.ok ? 'Layout applied' : 'Layout applied with errors',
+        response,
+      );
+    });
   }
 
   private onRemap(summary: LayoutSummary): void {
@@ -250,7 +244,7 @@ export class WorkspaceLayoutApp {
       return;
     }
 
-    const response = this.client.call('ReadLayout', 's', [summary.name]);
+    const response = this.client.readLayout(summary.name);
 
     if (!response.ok || response.layout === null) {
       showError(
@@ -284,7 +278,7 @@ export class WorkspaceLayoutApp {
       `This removes ${summary.name}.json from disk. This action cannot be undone.`,
       'Delete',
       () => {
-        const response = this.client.call('DeleteLayout', 's', [summary.name]);
+        const response = this.client.deleteLayout(summary.name);
 
         if (response.ok) {
           this.refresh();

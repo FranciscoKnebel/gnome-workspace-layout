@@ -1,5 +1,6 @@
 import { createInterface } from 'node:readline/promises';
 import type { Readable, Writable } from 'node:stream';
+import { windowDisplayName } from '../shared/display.js';
 import { selectCapturedWindows } from '../shared/capture.js';
 import type { CapturePreview } from '../shared/dbus-responses.js';
 import {
@@ -153,8 +154,8 @@ function selectionIndices(answer: string, count: number): number[] {
 function printWindows(layout: LayoutFile, output: Writable): void {
   layoutWindowsInApplyOrder(layout).forEach((target, index) => {
     const window = target.window;
-    const application =
-      window.appId ?? window.command ?? window.label ?? 'Window';
+    const displayName = windowDisplayName(window);
+    const application = window.appId ?? window.command ?? displayName;
     const title = window.title ?? window.label ?? '(untitled)';
     const workspace =
       target.kind === 'sticky'

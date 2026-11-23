@@ -211,11 +211,11 @@ export class CapturePage {
     }
 
     this.clearPreview();
-    const preview = this.options.client.call('PreviewSetup', 'sbb', [
+    const preview = this.options.client.previewSetup(
       name,
       this.includeMinimizedRow.get_active(),
       this.forceRow.get_active(),
-    ]);
+    );
 
     if (!preview.ok || preview.layout === undefined) {
       this.showMessages(preview);
@@ -297,10 +297,10 @@ export class CapturePage {
     }
 
     const savedName = selected.name;
-    const response = this.options.client.call('SaveSetup', 'sb', [
+    const response = this.options.client.saveSetup(
       JSON.stringify(selected),
       this.forceRow.get_active(),
-    ]);
+    );
 
     if (!response.ok) {
       this.showMessages(response);
