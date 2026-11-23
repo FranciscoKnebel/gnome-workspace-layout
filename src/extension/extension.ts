@@ -104,15 +104,7 @@ export default class WorkspaceLayoutExtension extends Extension {
 
   ListLayouts(): string {
     return this.runRead(
-      () => {
-        const status = runtimeStatus();
-        return listLayoutsResult(
-          listLayouts({
-            workspaces: status.workspaces.map((workspace) => workspace.name),
-            monitors: status.monitors.map((monitor) => monitor.index),
-          }),
-        );
-      },
+      () => listLayoutsResult(this.statusWithLayouts().summaries),
       (error) => listLayoutsResult([], [String(error)]),
     );
   }
@@ -145,41 +137,46 @@ export default class WorkspaceLayoutExtension extends Extension {
   GetOverview(): string {
     return this.runRead(
       () => {
-        const status = runtimeStatus();
-        return overviewResult(
-          status,
-          listLayouts({
-            workspaces: status.workspaces.map((workspace) => workspace.name),
-            monitors: status.monitors.map((monitor) => monitor.index),
-          }),
-        );
+        const { status, summaries } = this.statusWithLayouts();
+        return overviewResult(status, summaries);
       },
       (error) => overviewResult(null, [], [String(error)]),
     );
   }
 
-  private runGated<T extends OperationResult>(
-    factory: () => T,
-    fallback: (error: unknown) => T = (error) =>
-      result([String(error)], []) as unknown as T,
+  private statusWithLayouts() {
+    const status = runtimeStatus();
+    return {
+      status,
+      summaries: listLayouts({
+        workspaces: status.workspaces.map((workspace) => workspace.name),
+        monitors: status.monitors.map((monitor) => monitor.index),
+      }),
+    };
+  }
+
+  private runGated(
+    factory: () => OperationResult,
+    fallback: (error: unknown) => OperationResult = (error) =>
+      result([String(error)], []),
   ): string {
     return JSON.stringify(
       this.operations.run(() => this.withFallback(factory, fallback)),
     );
   }
 
-  private runRead<T extends OperationResult>(
-    factory: () => T,
-    fallback: (error: unknown) => T = (error) =>
-      result([String(error)], []) as unknown as T,
+  private runRead(
+    factory: () => OperationResult,
+    fallback: (error: unknown) => OperationResult = (error) =>
+      result([String(error)], []),
   ): string {
     return JSON.stringify(this.withFallback(factory, fallback));
   }
 
-  private withFallback<T extends OperationResult>(
-    factory: () => T,
-    fallback: (error: unknown) => T,
-  ): T {
+  private withFallback(
+    factory: () => OperationResult,
+    fallback: (error: unknown) => OperationResult,
+  ): OperationResult {
     try {
       return factory();
     } catch (error) {

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { LayoutFile } from '../src/shared/layout.js';
 import { remapLayoutWorkspaces } from '../src/shared/layout-transform.js';
-import { summarizeLayout } from '../src/shared/layout-summary.js';
+import {
+  summarizeLayout,
+  validateLayoutSummary,
+} from '../src/shared/layout-summary.js';
+import { isOverviewResponse } from '../src/shared/dbus-responses.js';
 
 const environment = {
   workspaces: ['Dev', 'Chat'],
@@ -187,5 +191,53 @@ describe('remapLayoutWorkspaces', () => {
     remapLayoutWorkspaces(layout, { 'Workspace 2': 'Dawntech' });
 
     expect(layout).toEqual(snapshot);
+  });
+});
+
+describe('validateLayoutSummary', () => {
+  const summary = summarizeLayout(
+    {
+      name: 'trabalho',
+      workspaces: {
+        Dev: {
+          windows: [{ command: 'editor', monitor: 0, position: 'left' }],
+        },
+      },
+    },
+    environment,
+    { name: 'trabalho', modifiedAt: 1700000000 },
+  );
+
+  it('accepts a generated summary', () => {
+    expect(validateLayoutSummary(summary)).toEqual([]);
+  });
+
+  it('rejects a malformed modification time', () => {
+    expect(
+      validateLayoutSummary({ ...summary, modifiedAt: 'yesterday' }),
+    ).toContain('layout summary.modifiedAt must be a number or null');
+  });
+
+  it('rejects a summary with the wrong workspace types', () => {
+    expect(validateLayoutSummary({ ...summary, workspaces: [1, 2] })).toContain(
+      'layout summary.workspaces must contain strings',
+    );
+  });
+});
+
+describe('isOverviewResponse', () => {
+  it('rejects an overview with an invalid summary', () => {
+    expect(
+      isOverviewResponse({
+        ok: true,
+        errors: [],
+        messages: [],
+        kind: 'GetOverview',
+        overview: {
+          status: null,
+          layouts: [{ name: 1 }],
+        },
+      }),
+    ).toBe(false);
   });
 });

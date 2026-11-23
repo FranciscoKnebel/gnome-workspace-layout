@@ -36,15 +36,23 @@ export function summarizeLayout(
   environment: LayoutEnvironment,
   metadata: LayoutSummaryMetadata = {},
 ): LayoutSummary {
-  const validation = validateLayout(layout);
-  const workspaces =
-    isValidLayout(layout) && validation.errors.length === 0
-      ? Object.keys(layout.workspaces)
-      : readWorkspaceNames(layout);
-  const windows: Array<{ monitor?: unknown }> =
-    isValidLayout(layout) && validation.errors.length === 0
-      ? layoutWindowsInApplyOrder(layout).map((target) => target.window)
-      : readWindows(layout);
+  let workspaces: string[];
+  let windows: Array<{ monitor?: unknown }>;
+  let stickyCount: number;
+  let errors: string[];
+
+  if (isValidLayout(layout)) {
+    workspaces = Object.keys(layout.workspaces);
+    windows = layoutWindowsInApplyOrder(layout).map((target) => target.window);
+    stickyCount = layout.sticky?.length ?? 0;
+    errors = [];
+  } else {
+    errors = validateLayout(layout).errors;
+    workspaces = readWorkspaceNames(layout);
+    windows = readWindows(layout);
+    stickyCount = readStickyEntries(layout).length;
+  }
+
   const monitors = [
     ...new Set(
       windows.map((window) => window.monitor).filter(isNonNegativeInteger),
@@ -59,14 +67,11 @@ export function summarizeLayout(
     ...(metadata.path === undefined ? {} : { path: metadata.path }),
     windowCount: windows.length,
     workspaceCount: workspaces.length,
-    stickyCount:
-      isValidLayout(layout) && validation.errors.length === 0
-        ? (layout.sticky?.length ?? 0)
-        : readStickyEntries(layout).length,
+    stickyCount,
     workspaces,
     monitors,
-    valid: validation.errors.length === 0,
-    errors: validation.errors,
+    valid: errors.length === 0,
+    errors,
     missingWorkspaces: workspaces.filter(
       (workspace) => !environment.workspaces.includes(workspace),
     ),
@@ -187,6 +192,13 @@ export function validateLayoutSummary(value: unknown): string[] {
     !value.missingMonitors.every((monitor) => typeof monitor === 'number')
   ) {
     errors.push('layout summary.missingMonitors must contain numbers');
+  }
+
+  if (
+    value.modifiedAt !== null &&
+    (typeof value.modifiedAt !== 'number' || !Number.isFinite(value.modifiedAt))
+  ) {
+    errors.push('layout summary.modifiedAt must be a number or null');
   }
 
   return errors;
