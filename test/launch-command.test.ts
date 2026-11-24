@@ -183,3 +183,22 @@ it('preserves marker-like text inside quoted arguments', () => {
     }),
   ).toBe('flatpak run app --profile="My @@ profile"');
 });
+
+it('keeps file forwarding when the group contains a literal path', () => {
+  expect(
+    buildLaunchCommand({
+      execLine:
+        'flatpak run --file-forwarding org.gnome.TextEditor @@ /home/user/private/notes.txt @@',
+    }),
+  ).toBe(
+    'flatpak run --file-forwarding org.gnome.TextEditor @@ /home/user/private/notes.txt @@',
+  );
+});
+
+it('drops file forwarding when the group only has field codes', () => {
+  expect(
+    buildLaunchCommand({
+      execLine: 'flatpak run --file-forwarding org.gnome.TextEditor @@ %f @@',
+    }),
+  ).toBe('flatpak run org.gnome.TextEditor');
+});
