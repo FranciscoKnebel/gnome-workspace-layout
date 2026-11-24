@@ -167,8 +167,10 @@ into `sticky`:
 
 Sticky windows use the same entry format as workspace windows: `label`, `appId`,
 `command`, `title`, `match`, `monitor`, `position`, `minimized`, and
-`timeoutMs`. `apply` creates workspace-specific windows first, then sticky
-windows. A layout with only sticky windows is valid when `workspaces` is `{}`.
+`timeoutMs`. Optional `label` and `title` must be strings, and `minimized` must
+be a boolean. Validation rejects other types before saving through D-Bus.
+`apply` creates workspace-specific windows first, then sticky windows. A layout
+with only sticky windows is valid when `workspaces` is `{}`.
 
 When capturing a window, `setup` prefers the desktop entry's `new-window`
 action when one exists. This avoids desktop launchers that only focus an
