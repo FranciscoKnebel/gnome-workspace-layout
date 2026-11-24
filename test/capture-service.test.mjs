@@ -102,6 +102,32 @@ describe('captureLayout', () => {
     expect(writeLayout).not.toHaveBeenCalled();
   });
 
+  it.each(['constructor', '__proto__', 'toString'])(
+    'previews a capture in a workspace named %s',
+    (name) => {
+      layoutExists.mockReturnValue(false);
+      getWindows.mockReturnValue([{ get_workspace: () => ({ name }) }]);
+      capturedWindowDetails.mockReturnValue({
+        appId: 'org.gnome.Ptyxis.desktop',
+        command: 'ptyxis --new-window',
+        monitorIndex: 0,
+        rect: { x: 0, y: 0, width: 1920, height: 1080 },
+        title: 'Terminal',
+      });
+
+      const preview = previewCapture('trabalho', false, false);
+
+      expect(preview.ok).toBe(true);
+      expect(Object.hasOwn(preview.layout.workspaces, name)).toBe(true);
+      expect(preview.layout.workspaces[name].windows).toHaveLength(1);
+      expect(
+        JSON.parse(JSON.stringify(preview.layout)).workspaces[name].windows,
+      ).toHaveLength(1);
+      expect(Object.hasOwn(Object.prototype, 'windows')).toBe(false);
+      expect(writeLayout).not.toHaveBeenCalled();
+    },
+  );
+
   it('filters preview candidates and preserves minimized and sticky state', () => {
     layoutExists.mockReturnValue(false);
     getWindows.mockReturnValue([

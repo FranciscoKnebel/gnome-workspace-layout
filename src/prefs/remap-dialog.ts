@@ -112,7 +112,7 @@ export class RemapDialog {
       return;
     }
 
-    const mapping: Record<string, string> = {};
+    const mapping = new Map<string, string>();
 
     for (const entry of this.mappings) {
       const selected = entry.dropDown.get_selected();
@@ -121,7 +121,7 @@ export class RemapDialog {
         return;
       }
 
-      mapping[entry.source] = this.workspaceNames[selected - 1];
+      mapping.set(entry.source, this.workspaceNames[selected - 1]);
     }
 
     this.setBusy(true);

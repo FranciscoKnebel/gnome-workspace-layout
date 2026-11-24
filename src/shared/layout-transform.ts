@@ -1,6 +1,6 @@
 import { copyLayout } from './copy.js';
 import type { LayoutFile, WindowPosition } from './layout.js';
-import { layoutWindowsInApplyOrder } from './layout.js';
+import { layoutWindowsInApplyOrder, WorkspaceAccumulator } from './layout.js';
 
 /**
  * Indices follow layoutWindowsInApplyOrder and are zero-based.
@@ -23,7 +23,7 @@ export function selectCapturedWindows(
     throw new Error('Selection contains an invalid window number.');
   }
 
-  const workspaces: LayoutFile['workspaces'] = {};
+  const workspaces = new WorkspaceAccumulator();
   const sticky: NonNullable<LayoutFile['sticky']> = [];
 
   targets.forEach((target, index) => {
@@ -34,35 +34,33 @@ export function selectCapturedWindows(
     if (target.kind === 'sticky') {
       sticky.push(target.window);
     } else {
-      workspaces[target.workspaceName] ??= { windows: [] };
-      workspaces[target.workspaceName].windows.push(target.window);
+      workspaces.add(target.workspaceName, [target.window]);
     }
   });
 
   return {
     ...(layout.$schema === undefined ? {} : { $schema: layout.$schema }),
     name: layout.name,
-    workspaces,
+    workspaces: workspaces.toRecord(),
     ...(sticky.length > 0 ? { sticky } : {}),
   };
 }
 
 export function remapLayoutWorkspaces(
   layout: LayoutFile,
-  mapping: Readonly<Record<string, string>>,
+  mapping: ReadonlyMap<string, string>,
 ): LayoutFile {
-  const workspaces: LayoutFile['workspaces'] = {};
+  const workspaces = new WorkspaceAccumulator();
 
   for (const [workspaceName, workspace] of Object.entries(layout.workspaces)) {
-    const targetName = mapping[workspaceName] ?? workspaceName;
-    workspaces[targetName] ??= { windows: [] };
-    workspaces[targetName].windows.push(...workspace.windows);
+    const targetName = mapping.get(workspaceName) ?? workspaceName;
+    workspaces.add(targetName, workspace.windows);
   }
 
   return {
     ...(layout.$schema === undefined ? {} : { $schema: layout.$schema }),
     name: layout.name,
-    workspaces,
+    workspaces: workspaces.toRecord(),
     ...(layout.sticky === undefined ? {} : { sticky: layout.sticky }),
   };
 }
