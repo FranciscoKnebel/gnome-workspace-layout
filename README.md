@@ -182,6 +182,9 @@ layout commands.
 
 - `apply` always launches new windows and only positions windows created by the command it just ran.
 - Existing windows are not reused, moved, closed, or minimized.
+- Window detection is asynchronous: it listens for new-window events before
+  launch, retries incomplete metadata, and performs a final scan at timeout
+  with a 150 ms grace period. Disabling the extension cancels outstanding waits.
 - Workspaces are referenced by their existing GNOME names.
 - Layout names are 1 to 64 characters, cannot start or end with whitespace, cannot be `.` or `..`, and cannot contain path separators or control characters.
 - Missing workspaces or monitors are reported as errors, but the rest of the layout continues.
