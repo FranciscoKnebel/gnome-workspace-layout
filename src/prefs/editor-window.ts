@@ -271,11 +271,13 @@ export class EditorWindow {
     const row = new Adw.ActionRow({ title: `${title} (%)` });
     row.add_suffix(entry);
 
-    entry.connect('notify::has-focus', () => {
-      if (!entry.get_has_focus() && !this.updating) {
+    const focus = new Gtk.EventControllerFocus();
+    focus.connect('leave', () => {
+      if (!this.updating) {
         this.commitPercentField(field, entry.get_text());
       }
     });
+    entry.add_controller(focus);
 
     return row;
   }
@@ -716,7 +718,7 @@ export class EditorWindow {
     const response = this.options.client.call<OperationResult>(
       'SaveSetup',
       'sb',
-      [JSON.stringify(this.layout), true],
+      [JSON.stringify({ ...this.layout, name: this.options.name }), true],
     );
 
     if (!response.ok) {
