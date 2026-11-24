@@ -1,6 +1,7 @@
 import Gio from 'gi://Gio';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { assertLayout, LAYOUT_SCHEMA_ID } from '../shared/layout.js';
+import { overviewResult, readLayoutResult } from '../shared/dbus-responses.js';
 import { applyLayout } from './apply-service.js';
 import { BUS_NAME, DBUS_XML, OBJECT_PATH } from './constants.js';
 import {
@@ -11,7 +12,11 @@ import {
 import { deleteLayout, listLayouts, readLayout } from './layout-store.js';
 import { OperationGate } from './operation-gate.js';
 import { layoutsDir } from './paths.js';
-import { result, type OperationResult } from '../shared/result.js';
+import {
+  operationFailure,
+  result,
+  type OperationResult,
+} from '../shared/result.js';
 import { runtimeStatus } from './status-service.js';
 import {
   cancelWindowWaits,
@@ -58,19 +63,15 @@ export default class WorkspaceLayoutExtension extends Extension {
   }
 
   Apply(name: string): string {
-    return JSON.stringify(this.operations.run(() => applyLayout(name)));
+    return this.runGated(() => applyLayout(name));
   }
 
   Setup(name: string, includeMinimized: boolean): string {
-    return JSON.stringify(
-      this.operations.run(() => captureLayout(name, includeMinimized, false)),
-    );
+    return this.runGated(() => captureLayout(name, includeMinimized, false));
   }
 
   SetupForce(name: string, includeMinimized: boolean): string {
-    return JSON.stringify(
-      this.operations.run(() => captureLayout(name, includeMinimized, true)),
-    );
+    return this.runGated(() => captureLayout(name, includeMinimized, true));
   }
 
   PreviewSetup(
@@ -78,19 +79,15 @@ export default class WorkspaceLayoutExtension extends Extension {
     includeMinimized: boolean,
     force: boolean,
   ): string {
-    return JSON.stringify(
-      this.operations.run(() => previewCapture(name, includeMinimized, force)),
-    );
+    return this.runRead(() => previewCapture(name, includeMinimized, force));
   }
 
   SaveSetup(layout: string, force: boolean): string {
-    return JSON.stringify(
-      this.operations.run(() => saveCapture(layout, force)),
-    );
+    return this.runGated(() => saveCapture(layout, force));
   }
 
   Doctor(): string {
-    return JSON.stringify({
+    return this.runRead(() => ({
       ok: true,
       errors: [],
       messages: [
@@ -101,55 +98,67 @@ export default class WorkspaceLayoutExtension extends Extension {
         `Monitors detected: ${getMonitorCount()}`,
         `Workspaces detected: ${getWorkspaceCount()}`,
       ],
-    } satisfies OperationResult);
-  }
-
-  ListLayouts(): string {
-    try {
-      const status = runtimeStatus();
-      return JSON.stringify(
-        Object.assign(result([], []), {
-          layouts: listLayouts({
-            workspaces: status.workspaces.map((workspace) => workspace.name),
-            monitors: status.monitors.map((monitor) => monitor.index),
-          }),
-        }),
-      );
-    } catch (error) {
-      return JSON.stringify(result([String(error)], []));
-    }
+    }));
   }
 
   ReadLayout(name: string): string {
-    try {
-      const layout = readLayout(name);
-      assertLayout(layout);
-      return JSON.stringify(Object.assign(result([], []), { layout }));
-    } catch (error) {
-      return JSON.stringify(result([String(error)], []));
-    }
-  }
-
-  DeleteLayout(name: string): string {
-    return JSON.stringify(
-      this.operations.run(() => {
-        try {
-          const path = deleteLayout(name);
-          return result([], [`Deleted ${path}`]);
-        } catch (error) {
-          return result([String(error)], []);
-        }
-      }),
+    return this.runRead(
+      () => {
+        const layout = readLayout(name);
+        assertLayout(layout);
+        return readLayoutResult(layout);
+      },
+      (error) => readLayoutResult(null, [String(error)]),
     );
   }
 
-  GetStatus(): string {
+  DeleteLayout(name: string): string {
+    return this.runGated(() => {
+      const path = deleteLayout(name);
+      return result([], [`Deleted ${path}`]);
+    });
+  }
+
+  GetOverview(): string {
+    return this.runRead(
+      () => {
+        const status = runtimeStatus();
+        return overviewResult(
+          status,
+          listLayouts({
+            workspaces: status.workspaces.map((workspace) => workspace.name),
+            monitors: status.monitors.map((monitor) => monitor.index),
+          }),
+        );
+      },
+      (error) => overviewResult(null, [], [String(error)]),
+    );
+  }
+
+  private runGated(
+    factory: () => OperationResult,
+    fallback: (error: unknown) => OperationResult = operationFailure,
+  ): string {
+    return JSON.stringify(
+      this.operations.run(() => this.withFallback(factory, fallback)),
+    );
+  }
+
+  private runRead(
+    factory: () => OperationResult,
+    fallback: (error: unknown) => OperationResult = operationFailure,
+  ): string {
+    return JSON.stringify(this.withFallback(factory, fallback));
+  }
+
+  private withFallback(
+    factory: () => OperationResult,
+    fallback: (error: unknown) => OperationResult,
+  ): OperationResult {
     try {
-      return JSON.stringify(
-        Object.assign(result([], []), { status: runtimeStatus() }),
-      );
+      return factory();
     } catch (error) {
-      return JSON.stringify(result([String(error)], []));
+      return fallback(error);
     }
   }
 }

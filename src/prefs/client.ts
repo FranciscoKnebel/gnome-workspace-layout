@@ -1,65 +1,169 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import type { LayoutFile } from '../shared/layout.js';
-import type { LayoutSummary } from '../shared/layout-summary.js';
-import type { OperationResult } from '../shared/result.js';
-import type { RuntimeStatus } from '../shared/status.js';
-
-const BUS_NAME = 'com.franciscoknebel.WorkspaceLayout';
-const OBJECT_PATH = '/com/franciscoknebel/WorkspaceLayout';
-const INTERFACE_NAME = 'com.franciscoknebel.WorkspaceLayout';
-const DEFAULT_TIMEOUT_MS = 30_000;
+import {
+  BUS_NAME,
+  describeDbusFailure,
+  INTERFACE_NAME,
+  OBJECT_PATH,
+} from '../shared/dbus.js';
+import {
+  capturePreviewResult,
+  isCapturePreview,
+  isOverviewResponse,
+  isReadLayoutResponse,
+  overviewResult,
+  readLayoutResult,
+  type CapturePreview,
+  type OverviewResponse,
+  type ReadLayoutResponse,
+} from '../shared/dbus-responses.js';
+import {
+  isOperationResult,
+  operationFailure,
+  result,
+  type OperationResult,
+} from '../shared/result.js';
 
 export const APPLY_TIMEOUT_MS = 600_000;
 
-export type ListLayoutsResponse = OperationResult & {
-  layouts?: LayoutSummary[];
-};
-
-export type ReadLayoutResponse = OperationResult & {
-  layout?: LayoutFile;
-};
-
-export type StatusResponse = OperationResult & {
-  status?: RuntimeStatus;
-};
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 export class ExtensionClient {
   private proxy: any = null;
 
-  call<T extends OperationResult>(
+  readLayout(name: string): ReadLayoutResponse {
+    return this.requestTyped(
+      'ReadLayout',
+      's',
+      [name],
+      isReadLayoutResponse,
+      (errors) => readLayoutResult(null, errors),
+      'The extension returned an invalid layout.',
+    );
+  }
+
+  getOverview(): OverviewResponse {
+    return this.requestTyped(
+      'GetOverview',
+      '',
+      [],
+      isOverviewResponse,
+      (errors) => overviewResult(null, [], errors),
+      'The extension returned an invalid overview.',
+    );
+  }
+
+  previewSetup(
+    name: string,
+    includeMinimized: boolean,
+    force: boolean,
+  ): CapturePreview {
+    return this.requestTyped(
+      'PreviewSetup',
+      'sbb',
+      [name, includeMinimized, force],
+      isCapturePreview,
+      (errors) => capturePreviewResult(undefined, errors),
+      'The extension returned an invalid capture preview.',
+    );
+  }
+
+  saveSetup(layout: string, force: boolean): OperationResult {
+    return this.requestTyped(
+      'SaveSetup',
+      'sb',
+      [layout, force],
+      isOperationResult,
+      (errors) => result(errors, []),
+      'The extension returned an invalid result.',
+    );
+  }
+
+  deleteLayout(name: string): OperationResult {
+    return this.requestTyped(
+      'DeleteLayout',
+      's',
+      [name],
+      isOperationResult,
+      (errors) => result(errors, []),
+      'The extension returned an invalid result.',
+    );
+  }
+
+  apply(
+    name: string,
+    timeoutMs: number,
+    callback: (response: OperationResult) => void,
+  ): void {
+    this.requestAsync(
+      'Apply',
+      's',
+      [name],
+      timeoutMs,
+      (value) => {
+        callback(
+          isOperationResult(value)
+            ? value
+            : operationFailure(
+                new Error('The extension returned an invalid result.'),
+                describe,
+              ),
+        );
+      },
+      (error) => callback(operationFailure(error, describe)),
+    );
+  }
+
+  private requestTyped<T>(
+    method: string,
+    signature: string,
+    values: unknown[],
+    guard: (value: unknown) => value is T,
+    fallback: (errors: string[]) => T,
+    invalidMessage: string,
+  ): T {
+    try {
+      const value = this.request(method, signature, values);
+      if (guard(value)) {
+        return value;
+      }
+
+      throw new Error(invalidMessage);
+    } catch (error) {
+      return fallback([describe(error)]);
+    }
+  }
+
+  private request(
     method: string,
     signature: string,
     values: unknown[],
     timeoutMs = DEFAULT_TIMEOUT_MS,
-  ): T {
-    try {
-      const reply = this.getProxy().call_sync(
-        method,
-        makeParameters(signature, values),
-        Gio.DBusCallFlags.NONE,
-        timeoutMs,
-        null,
-      );
-      return parseReply<T>(reply);
-    } catch (error) {
-      return errorResponse<T>(error);
-    }
+  ): unknown {
+    const reply = this.getProxy().call_sync(
+      method,
+      makeParameters(signature, values),
+      Gio.DBusCallFlags.NONE,
+      timeoutMs,
+      null,
+    );
+    return parseRawReply(reply);
   }
 
-  callAsync<T extends OperationResult>(
+  private requestAsync(
     method: string,
     signature: string,
     values: unknown[],
     timeoutMs: number,
-    callback: (response: T) => void,
+    onValue: (value: unknown) => void,
+    onError: (error: unknown) => void,
   ): void {
     let parameters: any;
 
     try {
       parameters = makeParameters(signature, values);
     } catch (error) {
-      callback(errorResponse<T>(error));
+      onError(error);
       return;
     }
 
@@ -70,20 +174,16 @@ export class ExtensionClient {
         Gio.DBusCallFlags.NONE,
         timeoutMs,
         null,
-        (proxy: any, result: any) => {
-          let response: T;
-
+        (proxy: any, callResult: any) => {
           try {
-            response = parseReply<T>(proxy.call_finish(result));
+            onValue(parseRawReply(proxy.call_finish(callResult)));
           } catch (error) {
-            response = errorResponse<T>(error);
+            onError(error);
           }
-
-          callback(response);
         },
       );
     } catch (error) {
-      callback(errorResponse<T>(error));
+      onError(error);
     }
   }
 
@@ -112,7 +212,7 @@ function makeParameters(signature: string, values: unknown[]): any {
   return new GLib.Variant(`(${signature})`, values);
 }
 
-function parseReply<T extends OperationResult>(reply: any): T {
+function parseRawReply(reply: any): unknown {
   const [serialized] = reply.deep_unpack();
 
   if (typeof serialized !== 'string') {
@@ -120,69 +220,15 @@ function parseReply<T extends OperationResult>(reply: any): T {
   }
 
   const parsed: unknown = JSON.parse(serialized);
-
   if (!isOperationResult(parsed)) {
     throw new Error('The extension returned an invalid operation result.');
   }
 
-  return parsed as T;
+  return parsed;
 }
 
-function errorResponse<T extends OperationResult>(error: unknown): T {
-  return {
-    ok: false,
-    errors: [describeError(error)],
-    messages: [],
-  } as unknown as T;
-}
-
-function describeError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-
-  if (
-    includesAny(message, [
-      'ServiceUnknown',
-      'NameHasNoOwner',
-      'not activatable',
-      'Could not connect',
-    ])
-  ) {
-    return 'Workspace Layout is not running. Enable the extension in GNOME Extensions and make sure the session is unlocked.';
-  }
-
-  if (includesAny(message, ['UnknownMethod', 'Unknown method'])) {
-    return 'The installed extension is older than this preferences window. Reinstall it and restart GNOME Shell.';
-  }
-
-  if (
-    message.includes('Another workspace-layout operation is already running')
-  ) {
-    return 'Another Workspace Layout operation is already running. Wait for it to finish and try again.';
-  }
-
-  if (message.includes('Timeout was reached')) {
-    return 'The extension did not answer in time. It may still be applying the layout.';
-  }
-
-  return message;
-}
-
-function includesAny(value: string, candidates: string[]): boolean {
-  return candidates.some((candidate) => value.includes(candidate));
-}
-
-function isOperationResult(value: unknown): value is OperationResult {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const result = value as Record<string, unknown>;
-
-  return (
-    typeof result.ok === 'boolean' &&
-    Array.isArray(result.errors) &&
-    result.errors.every((error) => typeof error === 'string') &&
-    Array.isArray(result.messages) &&
-    result.messages.every((message) => typeof message === 'string')
+function describe(error: unknown): string {
+  return describeDbusFailure(
+    error instanceof Error ? error.message : String(error),
   );
 }

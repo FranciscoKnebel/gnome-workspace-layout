@@ -2,16 +2,10 @@ import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import type { LayoutSummary } from '../shared/layout-summary.js';
-import type { OperationResult } from '../shared/result.js';
+import { workspaceLayoutPaths } from '../shared/paths.js';
 import type { RuntimeStatus } from '../shared/status.js';
 import { CapturePage } from './capture-page.js';
-import {
-  APPLY_TIMEOUT_MS,
-  ExtensionClient,
-  type ListLayoutsResponse,
-  type ReadLayoutResponse,
-  type StatusResponse,
-} from './client.js';
+import { APPLY_TIMEOUT_MS, ExtensionClient } from './client.js';
 import { EditorWindow } from './editor-window.js';
 import { LayoutsPage } from './layouts-page.js';
 import { RemapDialog } from './remap-dialog.js';
@@ -59,30 +53,15 @@ export class WorkspaceLayoutApp {
   }
 
   refresh(): void {
-    const statusResponse = this.client.call<StatusResponse>(
-      'GetStatus',
-      '',
-      [],
-    );
-    const layoutsResponse = this.client.call<ListLayoutsResponse>(
-      'ListLayouts',
-      '',
-      [],
-    );
+    const overview = this.client.getOverview();
 
-    this.status = statusResponse.status ?? null;
-    this.layouts = layoutsResponse.layouts ?? [];
-    this.connected = layoutsResponse.ok;
-    this.layoutsPage.setLayouts(
-      this.layouts,
-      this.connected,
-      layoutsResponse.errors.join('\n') || null,
-    );
+    this.status = overview.status;
+    this.layouts = overview.layouts;
+    this.connected = overview.ok;
+    const error = overview.errors.join('\n') || null;
+    this.layoutsPage.setLayouts(this.layouts, this.connected, error);
     this.capturePage.setLayouts(this.layouts, this.connected);
-    this.statusPage.setStatus(
-      this.status,
-      statusResponse.ok ? null : statusResponse.errors.join('\n'),
-    );
+    this.statusPage.setStatus(this.status, error);
     this.setBusy(this.busy);
   }
 
@@ -192,20 +171,14 @@ export class WorkspaceLayoutApp {
     }
 
     this.setBusy(true, name);
-    this.client.callAsync<OperationResult>(
-      'Apply',
-      's',
-      [name],
-      APPLY_TIMEOUT_MS,
-      (response) => {
-        this.setBusy(false);
-        showResult(
-          this.window,
-          response.ok ? 'Layout applied' : 'Layout applied with errors',
-          response,
-        );
-      },
-    );
+    this.client.apply(name, APPLY_TIMEOUT_MS, (response) => {
+      this.setBusy(false);
+      showResult(
+        this.window,
+        response.ok ? 'Layout applied' : 'Layout applied with errors',
+        response,
+      );
+    });
   }
 
   private onRemap(summary: LayoutSummary): void {
@@ -264,11 +237,9 @@ export class WorkspaceLayoutApp {
       return;
     }
 
-    const response = this.client.call<ReadLayoutResponse>('ReadLayout', 's', [
-      summary.name,
-    ]);
+    const response = this.client.readLayout(summary.name);
 
-    if (!response.ok || response.layout === undefined) {
+    if (!response.ok || response.layout === null) {
       showError(
         this.window,
         'Could not read layout',
@@ -300,11 +271,7 @@ export class WorkspaceLayoutApp {
       `This removes ${summary.name}.json from disk. This action cannot be undone.`,
       'Delete',
       () => {
-        const response = this.client.call<OperationResult>(
-          'DeleteLayout',
-          's',
-          [summary.name],
-        );
+        const response = this.client.deleteLayout(summary.name);
 
         if (response.ok) {
           this.refresh();
@@ -333,13 +300,11 @@ export class WorkspaceLayoutApp {
   }
 
   private openLayoutsFolder(): void {
-    const directory =
-      this.status?.layoutsDir ??
-      GLib.build_filenamev([
-        GLib.get_user_config_dir(),
-        'workspace-layout',
-        'layouts',
-      ]);
+    const fallbackPaths = workspaceLayoutPaths(
+      GLib.get_user_config_dir(),
+      GLib.get_user_data_dir(),
+    );
+    const directory = this.status?.layoutsDir ?? fallbackPaths.layoutsDir;
 
     if (!GLib.file_test(directory, GLib.FileTest.IS_DIR)) {
       showError(

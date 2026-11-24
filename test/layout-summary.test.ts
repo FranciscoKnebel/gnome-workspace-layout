@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { LayoutFile } from '../src/shared/layout.js';
+import { remapLayoutWorkspaces } from '../src/shared/layout-transform.js';
 import {
-  remapLayoutWorkspaces,
   summarizeLayout,
+  validateLayoutSummary,
 } from '../src/shared/layout-summary.js';
+import {
+  isOverviewResponse,
+  overviewResult,
+} from '../src/shared/dbus-responses.js';
 
 const environment = {
   workspaces: ['Dev', 'Chat'],
@@ -189,5 +194,80 @@ describe('remapLayoutWorkspaces', () => {
     remapLayoutWorkspaces(layout, { 'Workspace 2': 'Dawntech' });
 
     expect(layout).toEqual(snapshot);
+  });
+});
+
+describe('validateLayoutSummary', () => {
+  const summary = summarizeLayout(
+    {
+      name: 'trabalho',
+      workspaces: {
+        Dev: {
+          windows: [{ command: 'editor', monitor: 0, position: 'left' }],
+        },
+      },
+    },
+    environment,
+    { name: 'trabalho', modifiedAt: 1700000000 },
+  );
+
+  it('accepts a generated summary', () => {
+    expect(validateLayoutSummary(summary)).toEqual([]);
+  });
+
+  it('rejects a malformed modification time', () => {
+    expect(
+      validateLayoutSummary({ ...summary, modifiedAt: 'yesterday' }),
+    ).toContain('layout summary.modifiedAt must be a number or null');
+  });
+
+  it('rejects a summary with the wrong workspace types', () => {
+    expect(validateLayoutSummary({ ...summary, workspaces: [1, 2] })).toContain(
+      'layout summary.workspaces must contain strings',
+    );
+  });
+});
+
+describe('isOverviewResponse', () => {
+  it('rejects an overview with an invalid summary', () => {
+    expect(
+      isOverviewResponse({
+        ok: true,
+        errors: [],
+        messages: [],
+        kind: 'GetOverview',
+        status: null,
+        layouts: [{ name: 1 }],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('isOverviewResponse round trip', () => {
+  it('accepts a generated overview', () => {
+    const summary = summarizeLayout(
+      {
+        name: 'trabalho',
+        workspaces: {
+          Dev: {
+            windows: [{ command: 'editor', monitor: 0, position: 'left' }],
+          },
+        },
+      },
+      environment,
+      { name: 'trabalho', modifiedAt: 1700000000 },
+    );
+    const response = overviewResult(
+      {
+        monitors: [{ index: 0, x: 0, y: 0, width: 1920, height: 1080 }],
+        workspaces: [{ index: 0, name: 'Dev', active: true }],
+        activeWorkspaceIndex: 0,
+        layoutsDir: '/layouts',
+        schemaPath: '/schema.json',
+      },
+      [summary],
+    );
+
+    expect(isOverviewResponse(response)).toBe(true);
   });
 });

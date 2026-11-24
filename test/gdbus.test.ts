@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  describeGdbusCallFailure,
+  describeCliDbusFailure,
   parseGdbusSingleString,
 } from '../src/cli/gdbus.js';
 
@@ -77,10 +77,10 @@ describe('parseGdbusSingleString', () => {
   });
 });
 
-describe('describeGdbusCallFailure', () => {
+describe('describeCliDbusFailure', () => {
   it('explains when the running extension does not support --force', () => {
     expect(
-      describeGdbusCallFailure(
+      describeCliDbusFailure(
         'SetupForce',
         'GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod: No such method',
       ),
@@ -93,7 +93,7 @@ describe('describeGdbusCallFailure', () => {
     'explains when %s is missing from an older extension',
     (method) => {
       expect(
-        describeGdbusCallFailure(
+        describeCliDbusFailure(
           method,
           'GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod: No such method',
         ),

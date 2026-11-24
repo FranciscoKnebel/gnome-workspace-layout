@@ -1,9 +1,6 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import {
-  selectCapturedWindows,
-  type CapturePreview,
-} from '../shared/capture.js';
+import { selectCapturedWindows } from '../shared/layout-transform.js';
 import {
   layoutWindowsInApplyOrder,
   validateLayoutName,
@@ -13,7 +10,13 @@ import {
 import type { LayoutSummary } from '../shared/layout-summary.js';
 import type { OperationResult } from '../shared/result.js';
 import type { ExtensionClient } from './client.js';
-import { formatWindowDetails, formatWindowTitle, singleLine } from './ui.js';
+import {
+  formatWindowDetails,
+  formatWindowTitle,
+  plural,
+  RowGroup,
+  singleLine,
+} from './ui.js';
 
 type CapturePageOptions = {
   client: ExtensionClient;
@@ -39,7 +42,7 @@ export class CapturePage {
   private readonly previewButton: any;
   private readonly saveButton: any;
   private readonly discardButton: any;
-  private readonly resultRows = new Map<any, any[]>();
+  private readonly resultRows: RowGroup;
   private readonly previewRows: any[] = [];
   private readonly checks: WindowCheck[] = [];
   private preview: LayoutFile | null = null;
@@ -67,6 +70,7 @@ export class CapturePage {
     this.saveGroup.visible = false;
     this.resultGroup = new Adw.PreferencesGroup({ title: 'Result' });
     this.resultGroup.visible = false;
+    this.resultRows = new RowGroup(this.resultGroup);
 
     this.nameRow = new Adw.EntryRow({ title: 'Layout name' });
     this.includeMinimizedRow = new Adw.SwitchRow({
@@ -207,10 +211,10 @@ export class CapturePage {
     }
 
     this.clearPreview();
-    const preview = this.options.client.call<CapturePreview>(
-      'PreviewSetup',
-      'sbb',
-      [name, this.includeMinimizedRow.get_active(), this.forceRow.get_active()],
+    const preview = this.options.client.previewSetup(
+      name,
+      this.includeMinimizedRow.get_active(),
+      this.forceRow.get_active(),
     );
 
     if (!preview.ok || preview.layout === undefined) {
@@ -293,10 +297,9 @@ export class CapturePage {
     }
 
     const savedName = selected.name;
-    const response = this.options.client.call<OperationResult>(
-      'SaveSetup',
-      'sb',
-      [JSON.stringify(selected), this.forceRow.get_active()],
+    const response = this.options.client.saveSetup(
+      JSON.stringify(selected),
+      this.forceRow.get_active(),
     );
 
     if (!response.ok) {
@@ -330,7 +333,7 @@ export class CapturePage {
   }
 
   private showMessages(messageResult: OperationResult): void {
-    this.clearGroup(this.resultGroup);
+    this.resultRows.clear();
 
     if (
       messageResult.messages.length === 0 &&
@@ -346,7 +349,7 @@ export class CapturePage {
         subtitle: singleLine(message),
       });
       row.add_prefix(new Gtk.Image({ icon_name: 'emblem-ok-symbolic' }));
-      this.addRow(this.resultGroup, row);
+      this.resultRows.add(row);
     }
 
     for (const error of messageResult.errors) {
@@ -356,28 +359,9 @@ export class CapturePage {
       });
       row.set_subtitle_selectable(true);
       row.add_prefix(new Gtk.Image({ icon_name: 'dialog-error-symbolic' }));
-      this.addRow(this.resultGroup, row);
+      this.resultRows.add(row);
     }
 
     this.resultGroup.visible = true;
   }
-
-  private addRow(group: any, row: any): void {
-    const rows = this.resultRows.get(group) ?? [];
-    rows.push(row);
-    this.resultRows.set(group, rows);
-    group.add(row);
-  }
-
-  private clearGroup(group: any): void {
-    for (const row of this.resultRows.get(group) ?? []) {
-      group.remove(row);
-    }
-
-    this.resultRows.set(group, []);
-  }
-}
-
-function plural(count: number, singular: string): string {
-  return `${count} ${singular}${count === 1 ? '' : 's'}`;
 }

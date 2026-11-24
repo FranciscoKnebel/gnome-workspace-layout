@@ -1,4 +1,5 @@
 import { detectPosition, resolvePosition } from './geometry.js';
+import { windowDisplayName } from './display.js';
 import type { LayoutFile, WindowPosition } from './layout.js';
 import { layoutWindowsInApplyOrder } from './layout.js';
 
@@ -31,12 +32,7 @@ export function editorTargets(layout: LayoutFile): EditorTarget[] {
   return layoutWindowsInApplyOrder(layout).map((target, index) => ({
     index,
     kind: target.kind,
-    label:
-      target.window.label ??
-      target.window.title ??
-      target.window.appId ??
-      target.window.command ??
-      'Window',
+    label: windowDisplayName(target.window),
     workspaceLabel:
       target.kind === 'sticky'
         ? 'All workspaces (sticky)'
@@ -58,6 +54,23 @@ export function editorPosition(
   monitor: EditorMonitor,
 ): WindowPosition {
   return detectPosition(rect, { x: 0, y: 0, ...monitor });
+}
+
+export function clampEditorRect(
+  rect: EditorRect,
+  monitor: EditorMonitor,
+): EditorRect {
+  const minWidth = Math.min(EDITOR_MIN_SIZE_PX, monitor.width);
+  const minHeight = Math.min(EDITOR_MIN_SIZE_PX, monitor.height);
+  const width = clamp(rect.width, minWidth, monitor.width);
+  const height = clamp(rect.height, minHeight, monitor.height);
+
+  return {
+    x: clamp(rect.x, 0, monitor.width - width),
+    y: clamp(rect.y, 0, monitor.height - height),
+    width,
+    height,
+  };
 }
 
 export function moveEditorRect(
@@ -183,44 +196,6 @@ export function hitEditorHandle(
   }
 
   return null;
-}
-
-export function withEditorPosition(
-  layout: LayoutFile,
-  index: number,
-  position: WindowPosition,
-): LayoutFile {
-  return updateEditorTarget(layout, index, (target) => {
-    target.window.position = position;
-  });
-}
-
-export function withEditorMonitor(
-  layout: LayoutFile,
-  index: number,
-  monitor: number,
-): LayoutFile {
-  return updateEditorTarget(layout, index, (target) => {
-    target.window.monitor = monitor;
-  });
-}
-
-function updateEditorTarget(
-  layout: LayoutFile,
-  index: number,
-  update: (target: {
-    window: { monitor: number; position: WindowPosition };
-  }) => void,
-): LayoutFile {
-  const copy = JSON.parse(JSON.stringify(layout)) as LayoutFile;
-  const target = layoutWindowsInApplyOrder(copy)[index];
-
-  if (target === undefined) {
-    throw new Error(`Window ${index} does not exist in this layout.`);
-  }
-
-  update(target);
-  return copy;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectCapturedWindows } from '../src/shared/capture.js';
+import { selectCapturedWindows } from '../src/shared/layout-transform.js';
 import type { LayoutFile } from '../src/shared/layout.js';
 
 const layout: LayoutFile = {

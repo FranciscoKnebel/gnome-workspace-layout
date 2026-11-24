@@ -1,3 +1,5 @@
+import { isRecord } from './objects.js';
+
 export const LAYOUT_SCHEMA_ID =
   'https://franciscoknebel.com/workspace-layout.schema.json';
 
@@ -269,10 +271,6 @@ function isMatch(match: unknown): match is WindowMatch {
   return values.every(
     (value) => typeof value === 'string' && value.trim() !== '',
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isUnitNumber(value: unknown): value is number {

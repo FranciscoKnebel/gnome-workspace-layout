@@ -8,21 +8,6 @@ declare module 'gi://GLib' {
   export default GLib;
 }
 
-declare module 'gi://Gtk' {
-  const Gtk: any;
-  export default Gtk;
-}
-
-declare module 'gi://Adw' {
-  const Adw: any;
-  export default Adw;
-}
-
-declare module 'cairo' {
-  const cairo: any;
-  export default cairo;
-}
-
 declare module 'gi://Shell' {
   const Shell: any;
   export default Shell;
@@ -39,13 +24,6 @@ declare module 'resource:///org/gnome/shell/extensions/extension.js' {
     constructor(metadata: Record<string, unknown>);
     enable(): void;
     disable(): void;
-  }
-}
-
-declare module 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js' {
-  export class ExtensionPreferences {
-    constructor(...args: any[]);
-    fillPreferencesWindow(window: any): void;
   }
 }
 

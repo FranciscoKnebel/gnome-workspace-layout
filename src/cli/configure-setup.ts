@@ -1,9 +1,8 @@
-import { createInterface } from 'node:readline';
+import { createInterface } from 'node:readline/promises';
 import type { Readable, Writable } from 'node:stream';
-import {
-  selectCapturedWindows,
-  type CapturePreview,
-} from '../shared/capture.js';
+import { windowDisplayName } from '../shared/display.js';
+import { selectCapturedWindows } from '../shared/layout-transform.js';
+import type { CapturePreview } from '../shared/dbus-responses.js';
 import {
   layoutWindowsInApplyOrder,
   type LayoutFile,
@@ -44,28 +43,53 @@ export async function configureSetup(
   }
 
   const terminal = createInterface({ input, output, terminal: true });
-  const answers = terminal[Symbol.asyncIterator]();
-  let submittedAnswers = 0;
-  terminal.on('line', () => {
-    // readline also emits a partial final line on EOF, without an Enter key.
-    if (!input.readableEnded) {
-      submittedAnswers += 1;
+  const pending: string[] = [];
+  let waiting: ((value: string | null) => void) | null = null;
+  let closed = false;
+
+  terminal.on('line', (line) => {
+    // readline emits a partial final line on EOF, without an Enter key.
+    if (input.readableEnded) {
+      return;
+    }
+
+    const value = line.trim();
+    if (waiting !== null) {
+      const resolve = waiting;
+      waiting = null;
+      resolve(value);
+    } else {
+      pending.push(value);
+    }
+  });
+  terminal.on('close', () => {
+    closed = true;
+    if (waiting !== null) {
+      const resolve = waiting;
+      waiting = null;
+      resolve(null);
     }
   });
   terminal.on('SIGINT', () => {
     output.write('\n');
     terminal.close();
   });
-  const ask = async (prompt: string): Promise<string | null> => {
-    terminal.setPrompt(prompt);
-    output.write(prompt);
-    const answer = await answers.next();
-    if (answer.done || submittedAnswers === 0) {
-      return null;
-    }
-    submittedAnswers -= 1;
-    return answer.value.trim();
-  };
+  const ask = (prompt: string): Promise<string | null> =>
+    new Promise((resolve) => {
+      terminal.setPrompt(prompt);
+      output.write(prompt);
+      if (pending.length > 0) {
+        resolve(pending.shift() ?? null);
+        return;
+      }
+
+      if (closed) {
+        resolve(null);
+        return;
+      }
+
+      waiting = resolve;
+    });
 
   try {
     output.write(
@@ -131,8 +155,8 @@ function selectionIndices(answer: string, count: number): number[] {
 function printWindows(layout: LayoutFile, output: Writable): void {
   layoutWindowsInApplyOrder(layout).forEach((target, index) => {
     const window = target.window;
-    const application =
-      window.appId ?? window.command ?? window.label ?? 'Window';
+    const displayName = windowDisplayName(window);
+    const application = window.appId ?? window.command ?? displayName;
     const title = window.title ?? window.label ?? '(untitled)';
     const workspace =
       target.kind === 'sticky'

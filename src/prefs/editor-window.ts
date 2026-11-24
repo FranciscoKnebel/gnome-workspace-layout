@@ -1,7 +1,6 @@
 import Adw from 'gi://Adw';
-import cairo from 'cairo';
 import Gtk from 'gi://Gtk';
-import { absoluteToRelative } from '../shared/geometry.js';
+import { copyLayout } from '../shared/copy.js';
 import {
   editorPosition,
   editorRect,
@@ -10,16 +9,35 @@ import {
   hitEditorRect,
   moveEditorRect,
   resizeEditorRect,
-  withEditorMonitor,
-  withEditorPosition,
   type EditorHandle,
   type EditorRect,
+  type EditorTarget,
 } from '../shared/layout-editor.js';
-import { POSITION_PRESETS, type LayoutFile } from '../shared/layout.js';
-import type { OperationResult } from '../shared/result.js';
+import {
+  withEditorMonitor,
+  withEditorPosition,
+} from '../shared/layout-transform.js';
+import type {
+  LayoutFile,
+  PositionPreset,
+  WindowPosition,
+} from '../shared/layout.js';
 import type { MonitorStatus, RuntimeStatus } from '../shared/status.js';
 import type { ExtensionClient } from './client.js';
-import { showResult, singleLine } from './ui.js';
+import {
+  canvasHandleRadius,
+  canvasToMonitorPoint,
+  drawEditorCanvas,
+  type CanvasEntry,
+  type CanvasMetrics,
+} from './editor-canvas.js';
+import { EditorForm } from './editor-form.js';
+import { EditorWindowList } from './editor-window-list.js';
+import {
+  buildMonitorDropdown,
+  setMonitorSelection,
+} from './monitor-widgets.js';
+import { showResult } from './ui.js';
 
 type EditorWindowOptions = {
   parentWindow: any;
@@ -37,15 +55,6 @@ type DragState = {
   rect: EditorRect;
 };
 
-type CanvasMetrics = {
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-};
-
-const CANVAS_PADDING = 16;
-const HANDLE_RADIUS_PX = 8;
-
 export class EditorWindow {
   private readonly options: EditorWindowOptions;
   private readonly window: any;
@@ -53,22 +62,13 @@ export class EditorWindow {
   private readonly initialLayout: LayoutFile;
   private readonly monitors: MonitorStatus[];
   private readonly viewDropdown: any;
-  private readonly monitorDropdown: any;
-  private readonly presetDropdown: any;
-  private readonly xEntry: any;
-  private readonly yEntry: any;
-  private readonly widthEntry: any;
-  private readonly heightEntry: any;
-  private readonly selectionRow: any;
-  private readonly workspaceRow: any;
-  private readonly statusRow: any;
-  private readonly windowsGroup: any;
+  private readonly form: EditorForm;
+  private readonly windowList: EditorWindowList;
   private readonly saveButton: any;
   private layout: LayoutFile;
   private monitorIndex: number;
   private selectedIndex: number | null = null;
-  private visible: Array<{ index: number; rect: EditorRect }> = [];
-  private windowRows: any[] = [];
+  private visible: CanvasEntry[] = [];
   private drag: DragState | null = null;
   private metrics: CanvasMetrics = { scale: 1, offsetX: 0, offsetY: 0 };
   private updating = false;
@@ -131,80 +131,29 @@ export class EditorWindow {
       description: 'Select the monitor shown on the canvas.',
     });
     const viewRow = new Adw.ActionRow({ title: 'View' });
-    this.viewDropdown = this.buildMonitorDropdown((index) =>
-      this.changeViewMonitor(index),
+    this.viewDropdown = buildMonitorDropdown(
+      this.monitors,
+      (index) => this.changeViewMonitor(index),
+      () => this.updating,
     );
     viewRow.add_suffix(this.viewDropdown);
     viewGroup.add(viewRow);
     leftBox.append(viewGroup);
     leftBox.append(this.drawing);
 
+    this.form = new EditorForm({
+      monitors: this.monitors,
+      onMonitorChange: (monitor) => this.changeWindowMonitor(monitor),
+      onPresetChange: (preset) => this.changePreset(preset),
+      onPositionChange: (position) => this.changePosition(position),
+    });
+    this.windowList = new EditorWindowList((target) =>
+      this.onWindowSelected(target),
+    );
+
     const page = new Adw.PreferencesPage();
-    const selectionGroup = new Adw.PreferencesGroup({
-      title: 'Selected window',
-      description:
-        'Drag a rectangle to move it, drag its handles to resize it, or enter exact percentages below.',
-    });
-    this.selectionRow = new Adw.ActionRow({
-      title: 'Window',
-      subtitle: 'No window selected',
-    });
-    this.workspaceRow = new Adw.ActionRow({
-      title: 'Workspace',
-      subtitle: 'None',
-    });
-    const monitorRow = new Adw.ActionRow({ title: 'Window monitor' });
-    this.monitorDropdown = this.buildMonitorDropdown((index) =>
-      this.changeWindowMonitor(index),
-    );
-    monitorRow.add_suffix(this.monitorDropdown);
-    const presetRow = new Adw.ActionRow({ title: 'Position' });
-    const presetModel = new Gtk.StringList({
-      strings: ['Custom', ...POSITION_PRESETS],
-    });
-    this.presetDropdown = new Gtk.DropDown({
-      model: presetModel,
-      valign: Gtk.Align.CENTER,
-    });
-    this.presetDropdown.connect('notify::selected', () => this.changePreset());
-    presetRow.add_suffix(this.presetDropdown);
-
-    this.xEntry = this.buildPercentEntry();
-    this.yEntry = this.buildPercentEntry();
-    this.widthEntry = this.buildPercentEntry();
-    this.heightEntry = this.buildPercentEntry();
-    const xRow = this.buildPercentRow('X', this.xEntry, 'x');
-    const yRow = this.buildPercentRow('Y', this.yEntry, 'y');
-    const widthRow = this.buildPercentRow('Width', this.widthEntry, 'width');
-    const heightRow = this.buildPercentRow(
-      'Height',
-      this.heightEntry,
-      'height',
-    );
-
-    this.statusRow = new Adw.ActionRow({ title: 'Message', subtitle: '' });
-    this.statusRow.visible = false;
-
-    for (const row of [
-      this.selectionRow,
-      this.workspaceRow,
-      monitorRow,
-      presetRow,
-      xRow,
-      yRow,
-      widthRow,
-      heightRow,
-      this.statusRow,
-    ]) {
-      selectionGroup.add(row);
-    }
-
-    this.windowsGroup = new Adw.PreferencesGroup({
-      title: 'Windows in this layout',
-      description: 'Select a window to edit its placement.',
-    });
-    page.add(selectionGroup);
-    page.add(this.windowsGroup);
+    page.add(this.form.group);
+    page.add(this.windowList.group);
 
     paned.set_start_child(leftBox);
     paned.set_end_child(page);
@@ -235,53 +184,6 @@ export class EditorWindow {
     this.drawing.add_controller(gesture);
   }
 
-  private buildMonitorDropdown(onChanged: (index: number) => void): any {
-    const model = new Gtk.StringList({
-      strings: this.monitors.map((monitor) => `Monitor ${monitor.index}`),
-    });
-    const dropdown = new Gtk.DropDown({
-      model,
-      valign: Gtk.Align.CENTER,
-    });
-    dropdown.connect('notify::selected', () => {
-      if (this.updating) {
-        return;
-      }
-
-      const selected = dropdown.get_selected();
-      const monitor = this.monitors[selected];
-      if (monitor !== undefined) {
-        onChanged(monitor.index);
-      }
-    });
-    return dropdown;
-  }
-
-  private buildPercentEntry(): any {
-    const entry = new Gtk.Entry({
-      text: '0',
-      width_chars: 7,
-      valign: Gtk.Align.CENTER,
-    });
-    entry.connect('activate', () => this.commitPercentEntries());
-    return entry;
-  }
-
-  private buildPercentRow(title: string, entry: any, field: string): any {
-    const row = new Adw.ActionRow({ title: `${title} (%)` });
-    row.add_suffix(entry);
-
-    const focus = new Gtk.EventControllerFocus();
-    focus.connect('leave', () => {
-      if (!this.updating) {
-        this.commitPercentField(field, entry.get_text());
-      }
-    });
-    entry.add_controller(focus);
-
-    return row;
-  }
-
   private currentMonitor(): MonitorStatus {
     return (
       this.monitors.find((monitor) => monitor.index === this.monitorIndex) ??
@@ -298,106 +200,13 @@ export class EditorWindow {
     return { x: 0, y: 0, ...this.monitorSize() };
   }
 
-  private computeMetrics(width: number, height: number): CanvasMetrics {
-    const size = this.monitorSize();
-    const availableWidth = Math.max(1, width - CANVAS_PADDING * 2);
-    const availableHeight = Math.max(1, height - CANVAS_PADDING * 2);
-    const scale = Math.min(
-      availableWidth / Math.max(1, size.width),
-      availableHeight / Math.max(1, size.height),
-    );
-
-    return {
-      scale,
-      offsetX: (width - size.width * scale) / 2,
-      offsetY: (height - size.height * scale) / 2,
-    };
-  }
-
   private draw(cr: any, width: number, height: number): void {
-    this.metrics = this.computeMetrics(width, height);
-    const size = this.monitorSize();
-    const { scale, offsetX, offsetY } = this.metrics;
-    const monitorWidth = size.width * scale;
-    const monitorHeight = size.height * scale;
-
-    cr.setSourceRGBA(0, 0, 0, 0);
-    cr.paint();
-    cr.setSourceRGBA(0.1, 0.1, 0.12, 1);
-    cr.rectangle(offsetX, offsetY, monitorWidth, monitorHeight);
-    cr.fill();
-    cr.setSourceRGBA(0.55, 0.55, 0.6, 1);
-    cr.setLineWidth(1);
-    cr.rectangle(offsetX, offsetY, monitorWidth, monitorHeight);
-    cr.stroke();
-
-    for (const entry of this.visible) {
-      const selected = entry.index === this.selectedIndex;
-      const x = offsetX + entry.rect.x * scale;
-      const y = offsetY + entry.rect.y * scale;
-      const rectWidth = entry.rect.width * scale;
-      const rectHeight = entry.rect.height * scale;
-
-      if (selected) {
-        cr.setSourceRGBA(0.95, 0.65, 0.2, 0.32);
-      } else {
-        cr.setSourceRGBA(0.25, 0.55, 0.9, 0.22);
-      }
-      cr.rectangle(x, y, rectWidth, rectHeight);
-      cr.fill();
-
-      if (selected) {
-        cr.setSourceRGBA(1, 0.75, 0.3, 1);
-        cr.setLineWidth(2);
-      } else {
-        cr.setSourceRGBA(0.35, 0.65, 1, 0.9);
-        cr.setLineWidth(1);
-      }
-      cr.rectangle(x, y, rectWidth, rectHeight);
-      cr.stroke();
-
-      const target = editorTargets(this.layout)[entry.index];
-      if (target !== undefined) {
-        cr.selectFontFace(
-          'Sans',
-          cairo.FontSlant.NORMAL,
-          cairo.FontWeight.NORMAL,
-        );
-        cr.setFontSize(11);
-        cr.setSourceRGBA(1, 1, 1, 0.95);
-        cr.moveTo(x + 6, y + 16);
-        cr.showText(singleLine(target.label).slice(0, 48));
-      }
-    }
-
-    const selectedRect = this.selectedRect();
-    if (selectedRect !== null) {
-      const x = offsetX + selectedRect.x * scale;
-      const y = offsetY + selectedRect.y * scale;
-      const rectWidth = selectedRect.width * scale;
-      const rectHeight = selectedRect.height * scale;
-      const points = [
-        [x, y],
-        [x + rectWidth / 2, y],
-        [x + rectWidth, y],
-        [x + rectWidth, y + rectHeight / 2],
-        [x + rectWidth, y + rectHeight],
-        [x + rectWidth / 2, y + rectHeight],
-        [x, y + rectHeight],
-        [x, y + rectHeight / 2],
-      ];
-
-      cr.setSourceRGBA(1, 1, 1, 1);
-      cr.setLineWidth(1);
-      for (const [handleX, handleY] of points) {
-        cr.rectangle(handleX - 4, handleY - 4, 8, 8);
-        cr.fill();
-        cr.setSourceRGBA(0.1, 0.1, 0.12, 1);
-        cr.rectangle(handleX - 4, handleY - 4, 8, 8);
-        cr.stroke();
-        cr.setSourceRGBA(1, 1, 1, 1);
-      }
-    }
+    this.metrics = drawEditorCanvas(cr, width, height, {
+      monitor: this.monitorSize(),
+      entries: this.visible,
+      selectedIndex: this.selectedIndex,
+      selectedRect: this.selectedRect(),
+    });
   }
 
   private selectedRect(): EditorRect | null {
@@ -415,17 +224,13 @@ export class EditorWindow {
     widgetX: number,
     widgetY: number,
   ): { x: number; y: number } {
-    const { scale, offsetX, offsetY } = this.metrics;
-    return {
-      x: (widgetX - offsetX) / scale,
-      y: (widgetY - offsetY) / scale,
-    };
+    return canvasToMonitorPoint(this.metrics, widgetX, widgetY);
   }
 
   private onDragBegin(startX: number, startY: number): void {
     const point = this.toMonitorPoint(startX, startY);
     const selected = this.selectedRect();
-    const handleRadius = HANDLE_RADIUS_PX / this.metrics.scale;
+    const handleRadius = canvasHandleRadius(this.metrics);
     const handle =
       selected === null ? null : hitEditorHandle(selected, point, handleRadius);
 
@@ -474,7 +279,7 @@ export class EditorWindow {
       editorPosition(rect, size),
     );
     this.refreshCanvas();
-    this.refreshSelectedControls();
+    this.syncForm();
   }
 
   private onDragEnd(): void {
@@ -483,15 +288,24 @@ export class EditorWindow {
     }
 
     this.drag = null;
-    this.refreshWindowRows();
+    this.refreshWindowList();
+  }
+
+  private onWindowSelected(target: EditorTarget): void {
+    this.changeViewMonitor(target.monitor);
+    this.setSelection(target.index);
   }
 
   private changeViewMonitor(monitorIndex: number): void {
+    if (this.updating) {
+      return;
+    }
+
     this.monitorIndex = monitorIndex;
     this.refreshCanvas();
     const first = this.visible[0];
     this.setSelection(first?.index ?? null);
-    this.setMonitorSelection(this.viewDropdown, monitorIndex);
+    setMonitorSelection(this.viewDropdown, this.monitors, monitorIndex);
   }
 
   private changeWindowMonitor(monitorIndex: number): void {
@@ -505,82 +319,29 @@ export class EditorWindow {
       monitorIndex,
     );
     this.refreshCanvas();
-    this.refreshWindowRows();
-    this.refreshSelectedControls();
+    this.refreshWindowList();
+    this.syncForm();
   }
 
-  private changePreset(): void {
-    if (
-      this.updating ||
-      this.selectedIndex === null ||
-      this.presetDropdown.get_selected() === 0
-    ) {
+  private changePreset(preset: PositionPreset): void {
+    if (this.selectedIndex === null) {
       return;
     }
 
-    const preset = POSITION_PRESETS[this.presetDropdown.get_selected() - 1];
-    if (preset !== undefined) {
-      this.layout = withEditorPosition(this.layout, this.selectedIndex, preset);
-      this.refreshCanvas();
-      this.refreshSelectedControls();
-    }
-  }
-
-  private commitPercentEntries(): void {
-    const entries = [
-      ['x', this.xEntry],
-      ['y', this.yEntry],
-      ['width', this.widthEntry],
-      ['height', this.heightEntry],
-    ] as const;
-    const pending = entries.map(
-      ([field, entry]) => [field, entry.get_text()] as const,
-    );
-
-    let changed = false;
-    for (const [field, text] of pending) {
-      changed = this.commitPercentField(field, text) || changed;
-    }
-
-    if (changed) {
-      this.refreshWindowRows();
-    }
-  }
-
-  private commitPercentField(field: string, text: string): boolean {
-    if (this.updating || this.selectedIndex === null) {
-      return false;
-    }
-
-    const value = Number.parseFloat(text.replace('%', '').trim());
-    if (!Number.isFinite(value)) {
-      this.showStatus(`Enter a number for ${field}.`);
-      return false;
-    }
-
-    const size = this.monitorSize();
-    const target = editorTargets(this.layout)[this.selectedIndex];
-    if (target === undefined) {
-      return false;
-    }
-
-    const relative = absoluteToRelative(
-      editorRect(target.position, size),
-      this.monitorRect(),
-    );
-    const next = { ...relative, [field]: value / 100 };
-    let rect = editorRect(next, size);
-    rect = moveEditorRect(rect, 0, 0, size);
-    rect = resizeEditorRect(rect, 'se', 0, 0, size);
-    this.layout = withEditorPosition(
-      this.layout,
-      this.selectedIndex,
-      editorPosition(rect, size),
-    );
-    this.hideStatus();
+    this.layout = withEditorPosition(this.layout, this.selectedIndex, preset);
     this.refreshCanvas();
-    this.refreshSelectedControls();
-    return true;
+    this.syncForm();
+  }
+
+  private changePosition(position: WindowPosition): void {
+    if (this.selectedIndex === null) {
+      return;
+    }
+
+    this.layout = withEditorPosition(this.layout, this.selectedIndex, position);
+    this.refreshCanvas();
+    this.refreshWindowList();
+    this.syncForm();
   }
 
   private setSelection(index: number | null): void {
@@ -589,17 +350,18 @@ export class EditorWindow {
     }
 
     this.selectedIndex = index;
-    this.refreshWindowRows();
-    this.refreshSelectedControls();
+    this.refreshWindowList();
+    this.syncForm();
     this.drawing.queue_draw();
   }
 
   private refreshAll(): void {
-    this.setMonitorSelection(this.viewDropdown, this.monitorIndex);
+    this.updating = true;
+    setMonitorSelection(this.viewDropdown, this.monitors, this.monitorIndex);
+    this.updating = false;
     this.refreshCanvas();
-    this.refreshWindowRows();
-    this.refreshSelectedControls();
-    this.hideStatus();
+    this.refreshWindowList();
+    this.syncForm();
   }
 
   private refreshCanvas(): void {
@@ -609,104 +371,21 @@ export class EditorWindow {
       .map((target) => ({
         index: target.index,
         rect: editorRect(target.position, size),
+        label: target.label,
       }));
     this.drawing.queue_draw();
   }
 
-  private refreshWindowRows(): void {
-    for (const row of this.windowRows) {
-      this.windowsGroup.remove(row);
-    }
-    this.windowRows = [];
-
-    for (const target of editorTargets(this.layout)) {
-      const row = new Adw.ActionRow({
-        title: singleLine(target.label),
-        subtitle: `${singleLine(target.workspaceLabel)} | Monitor ${target.monitor}`,
-      });
-      row.set_subtitle_lines(2);
-      row.set_activatable(true);
-
-      if (target.index === this.selectedIndex) {
-        row.add_prefix(new Gtk.Image({ icon_name: 'emblem-default-symbolic' }));
-      }
-
-      row.connect('activated', () => {
-        this.changeViewMonitor(target.monitor);
-        this.setSelection(target.index);
-      });
-      this.windowsGroup.add(row);
-      this.windowRows.push(row);
-    }
+  private refreshWindowList(): void {
+    this.windowList.render(editorTargets(this.layout), this.selectedIndex);
   }
 
-  private refreshSelectedControls(): void {
-    this.updating = true;
+  private syncForm(): void {
     const target =
       this.selectedIndex === null
         ? undefined
         : editorTargets(this.layout)[this.selectedIndex];
-
-    if (target === undefined) {
-      this.selectionRow.set_subtitle('No window selected');
-      this.workspaceRow.set_subtitle('None');
-      this.monitorDropdown.set_sensitive(false);
-      this.presetDropdown.set_sensitive(false);
-      this.xEntry.set_sensitive(false);
-      this.yEntry.set_sensitive(false);
-      this.widthEntry.set_sensitive(false);
-      this.heightEntry.set_sensitive(false);
-      this.updating = false;
-      return;
-    }
-
-    this.selectionRow.set_subtitle(singleLine(target.label));
-    this.workspaceRow.set_subtitle(singleLine(target.workspaceLabel));
-    this.monitorDropdown.set_sensitive(true);
-    this.presetDropdown.set_sensitive(true);
-    this.xEntry.set_sensitive(true);
-    this.yEntry.set_sensitive(true);
-    this.widthEntry.set_sensitive(true);
-    this.heightEntry.set_sensitive(true);
-    this.setMonitorSelection(this.monitorDropdown, target.monitor);
-
-    if (typeof target.position === 'string') {
-      this.presetDropdown.set_selected(
-        POSITION_PRESETS.indexOf(target.position) + 1,
-      );
-    } else {
-      this.presetDropdown.set_selected(0);
-    }
-
-    const size = this.monitorSize();
-    const relative = absoluteToRelative(
-      editorRect(target.position, size),
-      this.monitorRect(),
-    );
-    this.xEntry.set_text(formatPercent(relative.x));
-    this.yEntry.set_text(formatPercent(relative.y));
-    this.widthEntry.set_text(formatPercent(relative.width));
-    this.heightEntry.set_text(formatPercent(relative.height));
-    this.updating = false;
-  }
-
-  private setMonitorSelection(dropdown: any, monitorIndex: number): void {
-    const position = this.monitors.findIndex(
-      (monitor) => monitor.index === monitorIndex,
-    );
-
-    if (position >= 0) {
-      dropdown.set_selected(position);
-    }
-  }
-
-  private showStatus(message: string): void {
-    this.statusRow.set_subtitle(singleLine(message));
-    this.statusRow.visible = true;
-  }
-
-  private hideStatus(): void {
-    this.statusRow.visible = false;
+    this.form.setTarget(target, this.monitorSize(), this.monitorRect());
   }
 
   private revert(): void {
@@ -718,10 +397,9 @@ export class EditorWindow {
   }
 
   private save(): void {
-    const response = this.options.client.call<OperationResult>(
-      'SaveSetup',
-      'sb',
-      [JSON.stringify({ ...this.layout, name: this.options.name }), true],
+    const response = this.options.client.saveSetup(
+      JSON.stringify({ ...this.layout, name: this.options.name }),
+      true,
     );
 
     if (!response.ok) {
@@ -733,12 +411,4 @@ export class EditorWindow {
     this.options.onSaved();
     showResult(this.options.parentWindow, 'Layout updated', response);
   }
-}
-
-function copyLayout(layout: LayoutFile): LayoutFile {
-  return JSON.parse(JSON.stringify(layout)) as LayoutFile;
-}
-
-function formatPercent(value: number): string {
-  return `${Math.round(value * 1000) / 10}`;
 }

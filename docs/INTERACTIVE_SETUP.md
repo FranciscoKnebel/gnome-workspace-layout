@@ -56,20 +56,19 @@ If a layout appears after preview, saving without `--force` still rejects the
 overwrite. With `--force`, confirmation authorizes replacing the file at save
 time, without a backup or merge.
 
-The preferences window uses four additional methods:
+The preferences window uses three additional methods:
 
-- `ListLayouts()` returns `layouts`, an array of layout summaries with counts,
-  validity, missing workspaces and monitors, file path, and modification time.
-  It reads the current workspace names and monitor indexes in the same call.
 - `ReadLayout(name: s)` returns the parsed `layout` for remapping.
 - `DeleteLayout(name: s)` removes one layout file.
-- `GetStatus()` returns `status` with monitors, workspaces, the active workspace
-  index, the layouts directory, and the schema path.
+- `GetOverview()` returns `status` and `layouts` in one call. The status includes
+  monitors, workspaces, the active workspace index, the layouts directory, and
+  the schema path. Each summary includes counts, validity, missing workspaces and
+  monitors, file path, and modification time.
 
-`ListLayouts`, `ReadLayout`, and `GetStatus` are read-only and remain available
-while another operation runs. `DeleteLayout` and `SaveSetup` use the operation
-gate. Layout names are validated before any file path is built, so a name cannot
-escape the layouts directory.
+`ReadLayout` and `GetOverview` are read-only and remain available while another
+operation runs. `DeleteLayout` and `SaveSetup` use the operation gate. Layout
+names are validated before any file path is built, so a name cannot escape the
+layouts directory.
 
 An older running extension may lack these new methods. Reinstall and log out/in
 before using the wizard; the CLI reports this mismatch instead of saving through

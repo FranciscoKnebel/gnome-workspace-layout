@@ -1,4 +1,4 @@
-import type { LayoutFile } from './layout.js';
+import { isNonNegativeInteger, isRecord } from './objects.js';
 import { validateLayout } from './layout.js';
 
 export type LayoutEnvironment = {
@@ -64,26 +64,6 @@ export function summarizeLayout(
   };
 }
 
-export function remapLayoutWorkspaces(
-  layout: LayoutFile,
-  mapping: Readonly<Record<string, string>>,
-): LayoutFile {
-  const workspaces: LayoutFile['workspaces'] = {};
-
-  for (const [workspaceName, workspace] of Object.entries(layout.workspaces)) {
-    const targetName = mapping[workspaceName] ?? workspaceName;
-    workspaces[targetName] ??= { windows: [] };
-    workspaces[targetName].windows.push(...workspace.windows);
-  }
-
-  return {
-    ...(layout.$schema === undefined ? {} : { $schema: layout.$schema }),
-    name: layout.name,
-    workspaces,
-    ...(layout.sticky === undefined ? {} : { sticky: layout.sticky }),
-  };
-}
-
 function readWorkspaceNames(layout: unknown): string[] {
   if (!isRecord(layout) || !isRecord(layout.workspaces)) {
     return [];
@@ -92,12 +72,12 @@ function readWorkspaceNames(layout: unknown): string[] {
   return Object.keys(layout.workspaces);
 }
 
-function readWindows(layout: unknown): Record<string, unknown>[] {
+function readWindows(layout: unknown): Array<{ monitor?: unknown }> {
   if (!isRecord(layout)) {
     return [];
   }
 
-  const windows: Record<string, unknown>[] = [];
+  const windows: Array<{ monitor?: unknown }> = [];
 
   if (isRecord(layout.workspaces)) {
     for (const workspace of Object.values(layout.workspaces)) {
@@ -130,10 +110,80 @@ function readStickyEntries(layout: unknown): unknown[] {
   return layout.sticky;
 }
 
-function isNonNegativeInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
-}
+export function validateLayoutSummary(value: unknown): string[] {
+  if (!isRecord(value)) {
+    return ['layout summary must be an object'];
+  }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  const errors: string[] = [];
+
+  if (typeof value.name !== 'string') {
+    errors.push('layout summary.name must be a string');
+  }
+
+  if (!isNonNegativeInteger(value.windowCount)) {
+    errors.push('layout summary.windowCount must be a non-negative integer');
+  }
+
+  if (!isNonNegativeInteger(value.workspaceCount)) {
+    errors.push('layout summary.workspaceCount must be a non-negative integer');
+  }
+
+  if (!isNonNegativeInteger(value.stickyCount)) {
+    errors.push('layout summary.stickyCount must be a non-negative integer');
+  }
+
+  if (
+    !Array.isArray(value.workspaces) ||
+    !value.workspaces.every((name) => typeof name === 'string')
+  ) {
+    errors.push('layout summary.workspaces must contain strings');
+  }
+
+  if (
+    !Array.isArray(value.monitors) ||
+    !value.monitors.every(isNonNegativeInteger)
+  ) {
+    errors.push('layout summary.monitors must contain non-negative integers');
+  }
+
+  if (typeof value.valid !== 'boolean') {
+    errors.push('layout summary.valid must be a boolean');
+  }
+
+  if (
+    !Array.isArray(value.errors) ||
+    !value.errors.every((error) => typeof error === 'string')
+  ) {
+    errors.push('layout summary.errors must contain strings');
+  }
+
+  if (
+    !Array.isArray(value.missingWorkspaces) ||
+    !value.missingWorkspaces.every((name) => typeof name === 'string')
+  ) {
+    errors.push('layout summary.missingWorkspaces must contain strings');
+  }
+
+  if (
+    !Array.isArray(value.missingMonitors) ||
+    !value.missingMonitors.every(isNonNegativeInteger)
+  ) {
+    errors.push(
+      'layout summary.missingMonitors must contain non-negative integers',
+    );
+  }
+
+  if (value.path !== undefined && typeof value.path !== 'string') {
+    errors.push('layout summary.path must be a string when present');
+  }
+
+  if (
+    value.modifiedAt !== null &&
+    (typeof value.modifiedAt !== 'number' || !Number.isFinite(value.modifiedAt))
+  ) {
+    errors.push('layout summary.modifiedAt must be a number or null');
+  }
+
+  return errors;
 }

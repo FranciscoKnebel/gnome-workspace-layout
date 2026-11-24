@@ -3,6 +3,7 @@ import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertLayoutName } from '../shared/layout.js';
+import { workspaceLayoutPaths } from '../shared/paths.js';
 import type { OperationResult } from '../shared/result.js';
 import { configureSetup } from './configure-setup.js';
 import { callExtension, quoteDbusString } from './extension-client.js';
@@ -55,14 +56,15 @@ try {
 
 function runDoctor(): void {
   const localChecks: string[] = [];
+  const home = process.env.HOME ?? '';
+  const paths = workspaceLayoutPaths(
+    join(home, '.config'),
+    join(home, '.local/share'),
+  );
   localChecks.push(`CLI: ${process.argv[1]}`);
   localChecks.push(`Expected extension UUID: ${EXTENSION_UUID}`);
-  localChecks.push(
-    `Layouts: ${process.env.HOME}/.config/workspace-layout/layouts`,
-  );
-  localChecks.push(
-    `Schema: ${process.env.HOME}/.local/share/workspace-layout/schema/workspace-layout.schema.json`,
-  );
+  localChecks.push(`Layouts: ${paths.layoutsDir}`);
+  localChecks.push(`Schema: ${paths.schemaPath}`);
   localChecks.push('GNOME logs: journalctl --user -f /usr/bin/gnome-shell');
 
   try {

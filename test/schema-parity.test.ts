@@ -4,7 +4,7 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import { describe, expect, it } from 'vitest';
 import { validateLayout, validateLayoutName } from '../src/shared/layout.js';
 import type { LayoutFile } from '../src/shared/layout.js';
-import { selectCapturedWindows } from '../src/shared/capture.js';
+import { selectCapturedWindows } from '../src/shared/layout-transform.js';
 
 const schema = JSON.parse(
   readFileSync(resolve('schema/workspace-layout.schema.json'), 'utf8'),
