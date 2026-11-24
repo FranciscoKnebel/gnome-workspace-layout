@@ -173,11 +173,13 @@ export class EditorForm {
       valign: Gtk.Align.CENTER,
     });
     entry.connect('activate', onActivate);
-    entry.connect('notify::has-focus', () => {
-      if (!entry.get_has_focus() && !this.updating) {
+    const focus = new Gtk.EventControllerFocus();
+    focus.connect('leave', () => {
+      if (!this.updating) {
         onActivate();
       }
     });
+    entry.add_controller(focus);
     return entry;
   }
 
