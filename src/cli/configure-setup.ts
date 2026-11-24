@@ -76,6 +76,7 @@ export async function configureSetup(
   });
   const ask = (prompt: string): Promise<string | null> =>
     new Promise((resolve) => {
+      terminal.setPrompt(prompt);
       output.write(prompt);
       if (pending.length > 0) {
         resolve(pending.shift() ?? null);

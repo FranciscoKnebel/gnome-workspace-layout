@@ -7,6 +7,18 @@ describe('joinPath', () => {
       joinPath('/home/user/.config/', '/workspace-layout/', 'layouts'),
     ).toBe('/home/user/.config/workspace-layout/layouts');
   });
+
+  it('keeps the root when the first component is a filesystem root', () => {
+    expect(joinPath('/', 'workspace-layout', 'layouts')).toBe(
+      '/workspace-layout/layouts',
+    );
+    expect(joinPath('///', 'workspace-layout', 'schema')).toBe(
+      '/workspace-layout/schema',
+    );
+    expect(joinPath('config', 'workspace-layout', 'layouts')).toBe(
+      'config/workspace-layout/layouts',
+    );
+  });
 });
 
 describe('workspaceLayoutPaths', () => {

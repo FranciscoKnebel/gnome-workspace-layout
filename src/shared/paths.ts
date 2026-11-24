@@ -19,10 +19,17 @@ export function workspaceLayoutPaths(
 }
 
 export function joinPath(...parts: string[]): string {
-  return parts
-    .map((part, index) =>
-      index === 0 ? part.replace(/\/+$/, '') : part.replace(/^\/+|\/+$/g, ''),
-    )
-    .filter((part) => part !== '')
-    .join('/');
+  let root = '';
+
+  const segments = parts
+    .map((part, index) => {
+      if (index === 0) {
+        root = /^\/+/.test(part) ? '/' : '';
+        return part.replace(/^\/+|\/+$/g, '');
+      }
+      return part.replace(/^\/+|\/+$/g, '');
+    })
+    .filter((part) => part !== '');
+
+  return `${root}${segments.join('/')}`;
 }
