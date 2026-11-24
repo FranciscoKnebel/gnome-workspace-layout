@@ -1,6 +1,8 @@
 export type LaunchMetadata = {
   appId?: string;
   desktopFile?: string;
+  desktopFileAvailable?: boolean;
+  execLine?: string;
 };
 
 export function buildLaunchCommand(
@@ -14,11 +16,92 @@ export function buildLaunchCommand(
     return newWindowExec;
   }
 
-  if (metadata.appId !== undefined) {
+  const flatpakExec =
+    metadata.execLine ?? readDesktopEntryExec(metadata.desktopFile);
+  if (flatpakExec !== undefined && isFlatpakRun(flatpakExec)) {
+    const command = sanitizeFlatpakExec(flatpakExec);
+    if (command !== undefined) return command;
+  }
+
+  if (metadata.appId !== undefined && metadata.desktopFileAvailable !== false) {
     return `gtk-launch ${shellQuote(metadata.appId.replace(/\.desktop$/, ''))}`;
   }
 
   return undefined;
+}
+
+function readDesktopEntryExec(
+  desktopFile: string | undefined,
+): string | undefined {
+  let section = '';
+  for (const rawLine of desktopFile?.split(/\r?\n/) ?? []) {
+    const line = rawLine.trim();
+    const group = /^\[([^\]]+)]$/.exec(line);
+    if (group !== null) section = group[1];
+    else if (section === 'Desktop Entry' && line.startsWith('Exec='))
+      return line.slice(5);
+  }
+  return undefined;
+}
+
+function isFlatpakRun(exec: string): boolean {
+  return /^(?:\/usr\/bin\/)?flatpak\s+run(?:\s|$)/.test(exec);
+}
+
+function sanitizeFlatpakExec(exec: string): string | undefined {
+  // Do not remove marker-like text inside quoted browser/profile arguments.
+  const tokens: string[] = [];
+  let token = '';
+  let quote: string | null = null;
+  for (const character of exec) {
+    if (character === "'" || character === '"') {
+      if (quote === null) quote = character;
+      else if (quote === character) quote = null;
+    }
+    if (quote === null && /\s/.test(character)) {
+      if (token !== '') tokens.push(token);
+      token = '';
+    } else token += character;
+  }
+  if (quote !== null) return undefined;
+  if (token !== '') tokens.push(token);
+
+  const markers = ['@@', '@@u'];
+  const literalGroups: Array<[number, number]> = [];
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (!markers.includes(tokens[index])) {
+      continue;
+    }
+
+    const close = tokens.findIndex(
+      (value, position) => position > index && markers.includes(value),
+    );
+    if (close < 0) {
+      return undefined;
+    }
+
+    const enclosed = tokens.slice(index + 1, close);
+    if (enclosed.some((value) => !/^%[dfFmnNuUv]$/.test(value))) {
+      literalGroups.push([index, close]);
+    }
+    index = close;
+  }
+
+  const hasLiteralForwarding = literalGroups.length > 0;
+  const kept = tokens.filter((value, index) => {
+    if (value === '--file-forwarding') {
+      return hasLiteralForwarding;
+    }
+    if (markers.includes(value)) {
+      return literalGroups.some(
+        ([start, end]) => index >= start && index <= end,
+      );
+    }
+    return true;
+  });
+
+  return sanitizeDesktopExec(kept.join(' '));
 }
 
 function readDesktopActionExec(
@@ -60,7 +143,10 @@ function readDesktopActionExec(
     }
 
     if (section === `Desktop Action ${action}` && line.startsWith('Exec=')) {
-      return sanitizeDesktopExec(line.slice('Exec='.length));
+      const exec = line.slice('Exec='.length);
+      return isFlatpakRun(exec)
+        ? sanitizeFlatpakExec(exec)
+        : sanitizeDesktopExec(exec);
     }
   }
 
