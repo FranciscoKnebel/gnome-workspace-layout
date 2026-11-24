@@ -527,16 +527,19 @@ export class EditorWindow {
   }
 
   private commitPercentEntries(): void {
-    const fields = [
+    const entries = [
       ['x', this.xEntry],
       ['y', this.yEntry],
       ['width', this.widthEntry],
       ['height', this.heightEntry],
     ] as const;
+    const pending = entries.map(
+      ([field, entry]) => [field, entry.get_text()] as const,
+    );
 
     let changed = false;
-    for (const [field, entry] of fields) {
-      changed = this.commitPercentField(field, entry.get_text()) || changed;
+    for (const [field, text] of pending) {
+      changed = this.commitPercentField(field, text) || changed;
     }
 
     if (changed) {
