@@ -260,6 +260,53 @@ describe('layout schema parity', () => {
     }
   });
 
+  it('rejects invalid optional window fields in schema and runtime', () => {
+    for (const extra of [{ label: 123 }, { title: 42 }, { minimized: 'yes' }]) {
+      const layout = {
+        name: 'selected',
+        workspaces: {
+          Dev: {
+            windows: [
+              {
+                command: 'gnome-terminal',
+                monitor: 0,
+                position: 'left',
+                ...extra,
+              },
+            ],
+          },
+        },
+      };
+
+      const context = JSON.stringify(extra);
+      expect(validateSchema(layout), context).toBe(false);
+      expect(validateLayout(layout).errors, context).not.toEqual([]);
+    }
+  });
+
+  it('accepts valid optional window fields in schema and runtime', () => {
+    const layout = {
+      name: 'selected',
+      workspaces: {
+        Dev: {
+          windows: [
+            {
+              command: 'gnome-terminal',
+              monitor: 0,
+              position: 'left',
+              label: '',
+              title: '',
+              minimized: true,
+            },
+          ],
+        },
+      },
+    };
+
+    expect(validateSchema(layout)).toBe(true);
+    expect(validateLayout(layout).errors).toEqual([]);
+  });
+
   it('keeps prototype-like workspace names valid after a JSON round trip', () => {
     for (const name of ['constructor', '__proto__', 'toString']) {
       const layout = JSON.parse(
