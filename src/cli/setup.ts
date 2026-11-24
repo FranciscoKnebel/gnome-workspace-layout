@@ -1,3 +1,5 @@
+import { assertLayoutName } from '../shared/layout.js';
+
 export type SetupOptions = {
   configure: boolean;
   force: boolean;
@@ -32,6 +34,8 @@ export function parseSetupOptions(arguments_: string[]): SetupOptions {
       'A layout name is required. Example: workspace-layout setup trabalho',
     );
   }
+
+  assertLayoutName(name);
 
   return { configure, force, includeMinimized, name };
 }

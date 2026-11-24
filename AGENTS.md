@@ -30,7 +30,7 @@ npm run lint
 ## Architecture Guardrails
 
 - Do not use X11 tools such as `wmctrl` or `xdotool` for core behavior. GNOME Wayland window manipulation must happen inside the GNOME Shell extension.
-- Keep GNOME-specific APIs in `src/extension/`.
+- Keep GNOME-specific Shell APIs in `src/extension/` and GNOME preferences APIs in `src/prefs/`; neither layer belongs in `src/cli/` or `src/shared/`.
 - Keep Node.js APIs in `src/cli/`.
 - Put testable, environment-independent behavior in `src/shared/`.
 - Keep layout schema changes synchronized across TypeScript types, validator code, `schema/workspace-layout.schema.json`, docs, and tests.

@@ -36,6 +36,44 @@ Make sure `~/.local/bin` is in your `PATH`.
 
 ## Usage
 
+### Preferences window
+
+Open the preferences window from GNOME Extensions, or run:
+
+```bash
+gnome-extensions prefs workspace-layout@franciscoknebel.com
+```
+
+The window has three pages:
+
+- **Layouts** lists every saved layout with its window/workspace counts, validity,
+  missing workspaces or monitors, and file path. Each layout exposes separate
+  Apply, Remap, Edit, Open, and Delete actions. The page updates after capture,
+  remap, edit, delete, or a manual refresh.
+- **Capture** reads the current arrangement, previews the windows found, and lets
+  you uncheck windows before saving. It does not close, move, or minimize live
+  windows. Capture is preview-first: nothing is written until Save layout.
+- **Status** shows the D-Bus connection, the layouts folder, the installed JSON
+  Schema, the current named workspaces, and monitor geometry.
+
+The visual editor opens from the Edit action on a saved layout. It draws each
+window of the selected monitor as a rectangle. Drag a rectangle to move it, drag
+the handles to resize it, or enter exact percentages in the side panel. The
+Position dropdown applies a preset and stores the same preset string used by the
+CLI. The Window monitor dropdown moves a selected window to another monitor. Save
+writes the layout with the existing `SaveSetup` operation, so the schema and
+validation rules are unchanged. Revert discards edits since the editor opened.
+
+Apply only launches and positions windows created by that apply run. It does not
+rearrange windows that are already open, exactly like the CLI.
+
+When a layout references a workspace that no longer exists, the Layouts page
+reports it as missing and offers **Remap**. Remap maps each missing workspace name
+to a current workspace and rewrites the layout file in place. If two old names map
+to the same current workspace, their windows are merged in their existing order.
+
+### CLI
+
 Capture the current visible layout:
 
 ```bash
@@ -143,6 +181,7 @@ layout commands.
 - `apply` always launches new windows and only positions windows created by the command it just ran.
 - Existing windows are not reused, moved, closed, or minimized.
 - Workspaces are referenced by their existing GNOME names.
+- Layout names are 1 to 64 characters, cannot start or end with whitespace, cannot be `.` or `..`, and cannot contain path separators or control characters.
 - Missing workspaces or monitors are reported as errors, but the rest of the layout continues.
 - Sticky windows are applied after workspace-specific windows and use the same entry format.
 - Window matching defaults to `appId`/`wmClass`; titles are captured as information but not used by default.
@@ -150,6 +189,7 @@ layout commands.
 - A command-only entry is matched to the process started by apply. Add `appId` or `match` when the command delegates window creation to another process.
 - Position presets are `full`, `left`, `right`, `top`, `bottom`, and `center`.
 - Custom positions are stored as monitor-relative percentages.
+- The visual editor changes only layout files. It never repositions live windows and adds no new layout-format fields.
 
 ## Development
 

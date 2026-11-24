@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { describe, expect, it } from 'vitest';
-import { validateLayout } from '../src/shared/layout.js';
+import { validateLayout, validateLayoutName } from '../src/shared/layout.js';
 import type { LayoutFile } from '../src/shared/layout.js';
 import { selectCapturedWindows } from '../src/shared/capture.js';
 
@@ -147,6 +147,34 @@ const cases: Array<{ name: string; layout: unknown; valid: boolean }> = [
       },
     },
   },
+  {
+    name: 'name with a path separator',
+    valid: false,
+    layout: {
+      name: '../escape',
+      workspaces: {
+        Dev: {
+          windows: [
+            { command: 'gnome-terminal', monitor: 0, position: 'left' },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: 'name with surrounding whitespace',
+    valid: false,
+    layout: {
+      name: ' trabalho',
+      workspaces: {
+        Dev: {
+          windows: [
+            { command: 'gnome-terminal', monitor: 0, position: 'left' },
+          ],
+        },
+      },
+    },
+  },
 ];
 
 describe('layout schema parity', () => {
@@ -181,5 +209,54 @@ describe('layout schema parity', () => {
 
     expect(schemaResult).toBe(valid);
     expect(runtimeResult).toBe(valid);
+  });
+
+  it('keeps layout name rules identical between schema and runtime', () => {
+    const names = [
+      'trabalho',
+      'meu layout',
+      'dev.dias',
+      'a_b-c',
+      'ação',
+      'a'.repeat(64),
+      'a'.repeat(65),
+      ' trabalho',
+      'trabalho ',
+      ' ',
+      '.',
+      '..',
+      '../escape',
+      'a/b',
+      'b/a',
+      '/a',
+      'a/',
+      '/',
+      'a\\b',
+      '\\a',
+      'a\\',
+      '\\',
+      'a\u0001',
+      '\u0001a',
+      'a\u0000b',
+      'a\u007fb',
+    ];
+
+    for (const name of names) {
+      const layout = {
+        name,
+        workspaces: {
+          Dev: {
+            windows: [
+              { command: 'gnome-terminal', monitor: 0, position: 'left' },
+            ],
+          },
+        },
+      };
+
+      expect(
+        validateSchema(layout),
+        `schema should agree on ${JSON.stringify(name)}`,
+      ).toBe(validateLayoutName(name).length === 0);
+    }
   });
 });

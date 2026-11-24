@@ -1,6 +1,8 @@
 export const LAYOUT_SCHEMA_ID =
   'https://franciscoknebel.com/workspace-layout.schema.json';
 
+export const LAYOUT_NAME_MAX_LENGTH = 64;
+
 export const POSITION_PRESETS = [
   'full',
   'left',
@@ -58,6 +60,42 @@ export type LayoutValidationResult = {
   errors: string[];
 };
 
+export function validateLayoutName(name: string): string[] {
+  const errors: string[] = [];
+
+  if (name.trim() === '') {
+    return ['name must be a non-empty string'];
+  }
+
+  if (name !== name.trim()) {
+    errors.push('name must not start or end with whitespace');
+  }
+
+  if ([...name].length > LAYOUT_NAME_MAX_LENGTH) {
+    errors.push(
+      `name must be at most ${LAYOUT_NAME_MAX_LENGTH} characters long`,
+    );
+  }
+
+  if (name === '.' || name === '..') {
+    errors.push('name must not be . or ..');
+  }
+
+  if (/[/\\\p{Cc}]/u.test(name)) {
+    errors.push('name must not contain path separators or control characters');
+  }
+
+  return errors;
+}
+
+export function assertLayoutName(name: string): void {
+  const errors = validateLayoutName(name);
+
+  if (errors.length > 0) {
+    throw new Error(`Invalid layout name:\n${errors.join('\n')}`);
+  }
+}
+
 export function validateLayout(layout: unknown): LayoutValidationResult {
   const errors: string[] = [];
 
@@ -65,8 +103,10 @@ export function validateLayout(layout: unknown): LayoutValidationResult {
     return { errors: ['layout must be an object'] };
   }
 
-  if (typeof layout.name !== 'string' || layout.name.trim() === '') {
+  if (typeof layout.name !== 'string') {
     errors.push('name must be a non-empty string');
+  } else {
+    errors.push(...validateLayoutName(layout.name));
   }
 
   if (!isRecord(layout.workspaces)) {

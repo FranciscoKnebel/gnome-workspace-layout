@@ -9,6 +9,7 @@ import {
   assertLayout,
   layoutWindowsInApplyOrder,
   validateLayout,
+  validateLayoutName,
 } from '../shared/layout.js';
 import type { OperationResult } from '../shared/result.js';
 import { result } from '../shared/result.js';
@@ -47,6 +48,11 @@ export function previewCapture(
 ): CapturePreview {
   const errors: string[] = [];
   const messages: string[] = [];
+  const nameErrors = validateLayoutName(name);
+
+  if (nameErrors.length > 0) {
+    return result(nameErrors, []);
+  }
 
   try {
     const replacing = layoutExists(name);

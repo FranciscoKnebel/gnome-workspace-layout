@@ -16,7 +16,12 @@
   ],
   "properties": {
     "$schema": { "type": "string" },
-    "name": { "type": "string", "minLength": 1 },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^(?!\\.{1,2}$)(?!.*[/\\\\\\u0000-\\u001F\\u007F-\\u009F])(?!\\s)(?!.*\\s$).+$"
+    },
     "sticky": {
       "type": "array",
       "items": { "$ref": "#/$defs/window" }

@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertLayoutName } from '../shared/layout.js';
 import type { OperationResult } from '../shared/result.js';
 import { configureSetup } from './configure-setup.js';
 import { callExtension, quoteDbusString } from './extension-client.js';
@@ -104,6 +105,10 @@ function installLocal(): void {
     join(extensionDir, 'extension.js'),
   );
   copyFileSync(
+    join(projectRoot, 'dist/prefs.js'),
+    join(extensionDir, 'prefs.js'),
+  );
+  copyFileSync(
     join(projectRoot, 'dist/metadata.json'),
     join(extensionDir, 'metadata.json'),
   );
@@ -161,6 +166,8 @@ function requireName(name: string | undefined): asserts name is string {
       'A layout name is required. Example: workspace-layout apply trabalho',
     );
   }
+
+  assertLayoutName(name);
 }
 
 function printHelp(): void {

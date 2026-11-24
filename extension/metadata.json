@@ -4,5 +4,5 @@
   "description": "Capture and apply named workspace layouts on GNOME Wayland.",
   "shell-version": ["50"],
   "url": "https://github.com/franciscoknebel/workspace-layout",
-  "version": 1
+  "version": 3
 }

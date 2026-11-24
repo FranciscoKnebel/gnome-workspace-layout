@@ -12,9 +12,10 @@
     "npm": ">=10"
   },
   "scripts": {
-    "build": "npm run clean && npm run build:shared && npm run build:extension && npm run build:cli && npm run build:schema && npm run build:metadata",
+    "build": "npm run clean && npm run build:shared && npm run build:extension && npm run build:prefs && npm run build:cli && npm run build:schema && npm run build:metadata",
     "build:shared": "tsc -p tsconfig.shared.json",
     "build:extension": "esbuild src/extension/extension.ts --bundle --format=esm --platform=neutral --target=es2022 --external:gi://* --external:resource://* --outfile=dist/extension.js",
+    "build:prefs": "esbuild src/prefs/prefs.ts --bundle --format=esm --platform=neutral --target=es2022 --external:gi://* --external:resource://* --external:cairo --outfile=dist/prefs.js",
     "build:cli": "esbuild src/cli/workspace-layout.ts --bundle --format=esm --platform=node --target=node22 --banner:js='#!/usr/bin/env node' --outfile=bin/workspace-layout.js && chmod +x bin/workspace-layout.js",
     "build:schema": "mkdir -p dist/schema && cp schema/workspace-layout.schema.json dist/schema/workspace-layout.schema.json",
     "build:metadata": "cp extension/metadata.json dist/metadata.json",

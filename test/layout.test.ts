@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  LAYOUT_NAME_MAX_LENGTH,
   layoutWindowsInApplyOrder,
   validateLayout,
+  validateLayoutName,
   type LayoutFile,
 } from '../src/shared/layout.js';
 
@@ -153,6 +155,54 @@ describe('validateLayout', () => {
 
     expect(result.errors).toContain(
       'workspace Dev.windows[0].command must be a non-empty string',
+    );
+  });
+});
+
+describe('validateLayoutName', () => {
+  it.each(['trabalho', 'meu layout', 'dev.dias', 'a_b-c'])(
+    'accepts %s',
+    (name) => {
+      expect(validateLayoutName(name)).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['', 'name must be a non-empty string'],
+    ['   ', 'name must be a non-empty string'],
+    [' trabalho', 'name must not start or end with whitespace'],
+    ['trabalho ', 'name must not start or end with whitespace'],
+    ['.', 'name must not be . or ..'],
+    ['..', 'name must not be . or ..'],
+    ['a/b', 'name must not contain path separators or control characters'],
+    ['a\\b', 'name must not contain path separators or control characters'],
+    ['a\u0000b', 'name must not contain path separators or control characters'],
+    ['a\u007fb', 'name must not contain path separators or control characters'],
+  ])('rejects %j', (name, error) => {
+    expect(validateLayoutName(name)).toContain(error);
+  });
+
+  it('limits the name length', () => {
+    expect(validateLayoutName('a'.repeat(LAYOUT_NAME_MAX_LENGTH))).toEqual([]);
+    expect(validateLayoutName('a'.repeat(LAYOUT_NAME_MAX_LENGTH + 1))).toEqual([
+      `name must be at most ${LAYOUT_NAME_MAX_LENGTH} characters long`,
+    ]);
+  });
+
+  it('reports invalid names through validateLayout', () => {
+    const result = validateLayout({
+      name: '../escape',
+      workspaces: {
+        Dev: {
+          windows: [
+            { command: 'gnome-terminal', monitor: 0, position: 'left' },
+          ],
+        },
+      },
+    });
+
+    expect(result.errors).toContain(
+      'name must not contain path separators or control characters',
     );
   });
 });

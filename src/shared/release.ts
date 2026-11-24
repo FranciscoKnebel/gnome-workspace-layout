@@ -13,6 +13,10 @@ export function validateExtensionRelease(
     errors.push('extension.js must exist at the ZIP root');
   }
 
+  if (!files.includes('prefs.js')) {
+    errors.push('prefs.js must exist at the ZIP root');
+  }
+
   if (!files.includes('metadata.json')) {
     errors.push('metadata.json must exist at the ZIP root');
   }

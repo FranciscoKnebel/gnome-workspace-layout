@@ -6,7 +6,7 @@ const validMetadata = {
   uuid: expectedUuid,
   name: 'Workspace Layout',
   description: 'Capture and apply named workspace layouts.',
-  version: 1,
+  version: 3,
   'shell-version': ['50'],
 };
 
@@ -14,7 +14,7 @@ describe('extension release validation', () => {
   it('accepts the expected extension artifact', () => {
     expect(
       validateExtensionRelease(
-        ['extension.js', 'metadata.json'],
+        ['extension.js', 'prefs.js', 'metadata.json'],
         validMetadata,
         expectedUuid,
       ),
@@ -30,6 +30,7 @@ describe('extension release validation', () => {
       ).errors,
     ).toEqual([
       'extension.js must exist at the ZIP root',
+      'prefs.js must exist at the ZIP root',
       'metadata.json must exist at the ZIP root',
     ]);
   });
@@ -39,6 +40,7 @@ describe('extension release validation', () => {
       validateExtensionRelease(
         [
           'extension.js',
+          'prefs.js',
           'metadata.json',
           'src/extension.ts',
           'vendor/node_modules/package/index.js',
@@ -63,7 +65,7 @@ describe('extension release validation', () => {
   it('validates required metadata fields', () => {
     expect(
       validateExtensionRelease(
-        ['extension.js', 'metadata.json'],
+        ['extension.js', 'prefs.js', 'metadata.json'],
         {
           uuid: 'wrong@example.com',
           name: '',
@@ -85,7 +87,7 @@ describe('extension release validation', () => {
   it('rejects non-object metadata', () => {
     expect(
       validateExtensionRelease(
-        ['extension.js', 'metadata.json'],
+        ['extension.js', 'prefs.js', 'metadata.json'],
         null,
         expectedUuid,
       ).errors,

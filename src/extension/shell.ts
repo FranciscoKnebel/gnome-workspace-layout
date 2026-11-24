@@ -3,6 +3,7 @@ import Shell from 'gi://Shell';
 import type { Rect } from '../shared/geometry.js';
 import { buildLaunchCommand } from '../shared/launch-command.js';
 import type { LayoutWindow } from '../shared/layout.js';
+import type { MonitorStatus, WorkspaceStatus } from '../shared/status.js';
 import { matchesWindowIdentity } from '../shared/window-matching.js';
 import { DEFAULT_TIMEOUT_MS } from './constants.js';
 
@@ -46,6 +47,35 @@ export function getMonitorRect(index: number): Rect | null {
     return null;
   }
   return rectToPlain(global.display.get_monitor_geometry(index));
+}
+
+export function getMonitors(): MonitorStatus[] {
+  const monitors: MonitorStatus[] = [];
+
+  for (let index = 0; index < getMonitorCount(); index += 1) {
+    const rect = getMonitorRect(index);
+    if (rect !== null) {
+      monitors.push({ index, ...rect });
+    }
+  }
+
+  return monitors;
+}
+
+export function getWorkspaces(): WorkspaceStatus[] {
+  const manager = global.workspace_manager;
+  const activeIndex = getActiveWorkspaceIndex();
+  const workspaces: WorkspaceStatus[] = [];
+
+  for (let index = 0; index < manager.get_n_workspaces(); index += 1) {
+    workspaces.push({
+      index,
+      name: getWorkspaceName(manager.get_workspace_by_index(index)),
+      active: index === activeIndex,
+    });
+  }
+
+  return workspaces;
 }
 
 export function windowKey(window: any): string {

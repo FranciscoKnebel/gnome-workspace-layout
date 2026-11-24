@@ -11,6 +11,38 @@ A named JSON file stored at `~/.config/workspace-layout/layouts/<name>.json`.
 It contains workspaces and the windows to create in each workspace.
 It can also contain top-level sticky windows that are global to all workspaces.
 
+## Layout Name
+
+The file stem and `name` field of a layout. It must be 1 to 64 characters, cannot
+start or end with whitespace, cannot be `.` or `..`, and cannot contain path
+separators or control characters.
+
+## Layout Summary
+
+The read-only description of a saved layout used by the preferences window. It
+reports window, workspace, and sticky counts plus validity, missing workspaces,
+missing monitors, file path, and modification time.
+
+## Visual Editor
+
+The window opened from a layout's Edit action. It draws monitor-relative window
+rectangles and edits their `position` and `monitor` fields. Dragging, resizing,
+presets, and percentage entries all produce values already supported by the
+layout format. It does not move live windows.
+
+## Editor Handle
+
+One of the eight drag points shown around the selected rectangle in the visual
+editor. Corner and edge handles resize the window while keeping it inside the
+monitor.
+
+## Preferences Window
+
+The libadwaita window installed as `prefs.js` and opened by GNOME Extensions. It
+lists layouts, previews and saves captures, remaps missing workspaces, applies
+layouts, edits positions, and shows runtime status. Window operations still
+happen inside the extension over D-Bus.
+
 ## Workspace
 
 A GNOME workspace identified by its existing display name. The extension validates
@@ -61,6 +93,17 @@ recapture windows after the user makes a selection.
 
 The command that launches and positions new windows according to a layout file.
 It does not modify existing windows.
+
+## Preflight
+
+The review shown before applying a layout. It reports missing workspaces and
+monitors and offers to remap workspaces first or to apply anyway.
+
+## Workspace Remap
+
+The operation that maps each missing workspace name referenced by a layout to a
+current GNOME workspace and rewrites the layout file in place. Windows from two
+source names mapped to the same workspace are merged.
 
 ## Doctor
 
